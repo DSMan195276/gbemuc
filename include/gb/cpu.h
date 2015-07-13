@@ -16,17 +16,17 @@ enum {
 };
 
 enum {
-    GB_REG_A,
     GB_REG_F,
+    GB_REG_A,
 
-    GB_REG_B,
     GB_REG_C,
+    GB_REG_B,
 
-    GB_REG_D,
     GB_REG_E,
+    GB_REG_D,
 
-    GB_REG_H,
     GB_REG_L,
+    GB_REG_H,
 };
 
 enum {
@@ -48,14 +48,22 @@ struct gb_cpu {
 
     unsigned int halted :1;
     unsigned int stopped :1;
-    unsigned int int_enabled :1;
+    unsigned int ime :1; /* Interrupt master enable */
 
     /* These are used for the delay required by the DI and EI instructions.
      * The CPU counts down the 'int_count' and then sets 'int_enabled' equal to
      * 'next_int_enabled' when 'int_count' hits zero.
      * 'int_count' is decremented at the end of running an instruction. */
-    unsigned int next_int_enabled :1;
+    unsigned int next_ime:1;
     unsigned int int_count :2;
 };
+
+struct gb_emu;
+
+uint8_t gb_cpu_int_read8(struct gb_emu *, uint16_t addr, uint16_t low);
+uint16_t gb_cpu_int_read16(struct gb_emu *, uint16_t addr, uint16_t low);
+
+void gb_cpu_int_write8(struct gb_emu *, uint16_t addr, uint16_t low, uint8_t byte);
+void gb_cpu_int_write16(struct gb_emu *, uint16_t addr, uint16_t low, uint16_t word);
 
 #endif

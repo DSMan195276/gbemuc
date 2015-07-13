@@ -8,12 +8,13 @@
 #include "gb.h"
 #include "gb/gpu.h"
 #include "gb/io.h"
+#include "debug.h"
 
 uint8_t gb_emu_io_read8(struct gb_emu *emu, uint16_t addr, uint16_t low)
 {
     uint8_t ret = 0;
 
-    switch (addr) {
+    switch (addr + low) {
     case GB_IO_GPU_CTL:
         ret = emu->gpu.ctl;
         break;
@@ -31,6 +32,10 @@ uint8_t gb_emu_io_read8(struct gb_emu *emu, uint16_t addr, uint16_t low)
     case GB_IO_GPU_SCRX:
         ret = emu->gpu.scroll_x;
         break;
+
+    case GB_IO_GPU_LY:
+        ret = emu->gpu.cur_line;
+        break;
     }
 
     return ret;
@@ -38,9 +43,15 @@ uint8_t gb_emu_io_read8(struct gb_emu *emu, uint16_t addr, uint16_t low)
 
 void gb_emu_io_write8(struct gb_emu *emu, uint16_t addr, uint16_t low, uint8_t byte)
 {
-    switch (addr) {
+    DEBUG_PRINTF("WRITE TO: 0x%02x - 0x%02x\n", addr + low, byte);
+    switch (addr + low) {
+    case GB_IO_BIOS_FLAG:
+        if (byte == 1)
+            emu->mmu.bios_flag = 1;
+        break;
+
     case GB_IO_GPU_CTL:
-        emu->gpu.ctl = byte;
+        gb_gpu_ctl_change(&emu->gpu, byte);
         break;
 
     case GB_IO_GPU_STATUS:
@@ -55,6 +66,10 @@ void gb_emu_io_write8(struct gb_emu *emu, uint16_t addr, uint16_t low, uint8_t b
 
     case GB_IO_GPU_SCRX:
         emu->gpu.scroll_x = byte;
+        break;
+
+    case GB_IO_GPU_LY:
+        emu->gpu.cur_line = 0;
         break;
     }
 }

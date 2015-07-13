@@ -18,6 +18,8 @@ struct gb_mmu_entry {
 
 struct gb_mmu {
     struct slist_head entry_list;
+
+    int bios_flag;
 };
 
 void gb_mmu_add_mmu_entry(struct gb_mmu *mmu, struct gb_mmu_entry *entry);

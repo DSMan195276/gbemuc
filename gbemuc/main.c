@@ -8,6 +8,7 @@
 #include "debug.h"
 #include "sdl_display.h"
 #include "gb/rom.h"
+#include "gb/debugger.h"
 #include "gb.h"
 
 int main(int argc, char **argv)
@@ -17,6 +18,7 @@ int main(int argc, char **argv)
     struct gb_gpu_display *disp;
     SDL_Rect rect;
     SDL_Window *window;
+    SDL_Renderer *renderer;
 
     DEBUG_INIT();
 
@@ -41,15 +43,16 @@ int main(int argc, char **argv)
     rect.w = GB_SCREEN_WIDTH;
     rect.h = GB_SCREEN_HEIGHT;
 
-    disp = gb_sdl_display_new(&rect, window, SDL_GetWindowSurface(window));
+    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+
+    disp = gb_sdl_display_new(&rect, renderer);
 
     gb_emu_set_display(&emu, disp);
-    gb_run(&emu);
-
-    SDL_Delay(2000);
+    gb_debugger_run(&emu);
 
     gb_emu_clear(&emu);
     gb_sdl_display_destroy(disp);
+    SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
 
     SDL_Quit();

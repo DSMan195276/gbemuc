@@ -5,4 +5,5 @@ objs-y += mmu.o
 objs-y += rom.o
 objs-y += io.o
 objs-y += gpu.o
+objs-y += debugger.o
 

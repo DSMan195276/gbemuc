@@ -9,6 +9,7 @@
 #include "gb/rom.h"
 
 #define GB_HZ 4194304
+/* #define GB_HZ 256 */
 
 struct gb_emu {
     struct gb_cpu cpu;
@@ -17,11 +18,8 @@ struct gb_emu {
 
     struct gb_rom rom;
 
-    char vram[8 * 1024]; /* Video RAM space */
     char wram[8 * 1024]; /* Working RAM space */
     char zram[128]; /* Zero-page RAM */
-
-    char sprite_ram[160]; /* Sprite information */
 };
 
 /* Calling this causes a clock-tick to occur */
@@ -32,7 +30,7 @@ int gb_emu_cpu_run_inst(struct gb_emu *emu, uint8_t opcode);
 
 void gb_emu_rom_open(struct gb_emu *emu, const char *filename);
 void gb_emu_set_display(struct gb_emu *emu, struct gb_gpu_display *display);
-void gb_emu_dump_regs(struct gb_emu *emu);
+void gb_emu_dump_regs(struct gb_emu *emu, char *output_buf);
 
 void gb_emu_init(struct gb_emu *emu, struct gb_gpu_display *display);
 void gb_emu_clear(struct gb_emu *emu);

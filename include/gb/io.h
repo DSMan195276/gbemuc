@@ -5,6 +5,8 @@
 
 struct gb_emu;
 
+#define GB_IO_BIOS_FLAG 0xFF50
+
 uint8_t gb_emu_io_read8(struct gb_emu *, uint16_t addr, uint16_t low);
 void gb_emu_io_write8(struct gb_emu *, uint16_t addr, uint16_t low, uint8_t byte);
 

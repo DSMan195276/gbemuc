@@ -25,8 +25,9 @@ void gb_emu_init(struct gb_emu *emu, struct gb_gpu_display *display)
     gb_rom_init(&emu->rom);
     gb_gpu_init(&emu->gpu, display);
 
-    emu->cpu.r.w[GB_REG_PC] = 0x0100;
-    emu->cpu.r.w[GB_REG_SP] = 0xFFFE;
+    emu->cpu.ime = 0;
+
+    emu->cpu.r.w[GB_REG_PC] = 0x0000;
 }
 
 void gb_emu_set_display(struct gb_emu *emu, struct gb_gpu_display *display)
