@@ -10,10 +10,10 @@
 
 union gb_gpu_color_u gb_colors[] =
 {
-    { .i_color = 0xFF000000 },
-    { .i_color = 0xFF808080 },
-    { .i_color = 0xFFC0C0C0 },
     { .i_color = 0xFFFFFFFF },
+    { .i_color = 0xFFC0C0C0 },
+    { .i_color = 0xFF808080 },
+    { .i_color = 0xFF000000 },
 };
 
 static void render_background(struct gb_gpu *gpu)
@@ -34,31 +34,29 @@ static void render_background(struct gb_gpu *gpu)
 
     tile_offset_byte = bkgd_y_pix % 8;
 
-    /*
-    printf("BKGD MAP: %d\n", gpu->ctl & GB_GPU_CTL_BKGD_MAP);
-    printf("Line: %d\n", gpu->cur_line);
-    printf("Scroll y: %d\n", gpu->scroll_y);
-    printf("BKGD Y-Pixel: %d\n", bkgd_y_pix);
-    printf("BKGD tile row: %d\n", tile);
-    printf("BKGD addr: 0x%04x\n", 0x9800 + tile); */
-
     for (i = 0; i < GB_SCREEN_WIDTH; i++) {
-        uint8_t c;
+        uint8_t c, pal_col;
         uint8_t lo, hi;
         uint8_t sprite;
+        uint8_t x_pix;
 
-        sprite = bkgd_tiles[i / 8];
-        lo = (gpu->vram.seg.sprites[sprite][tile_offset_byte * 2]) & (i % 8);
-        hi = (gpu->vram.seg.sprites[sprite][tile_offset_byte * 2 + 1]) & (i % 8);
+        x_pix = (i + gpu->scroll_x) % (8 * 32);
+        sprite = bkgd_tiles[x_pix / 8];
+
+        lo = gpu->vram.seg.sprites[sprite][tile_offset_byte * 2] & (1 << (7 - (x_pix % 8)));
+        hi = gpu->vram.seg.sprites[sprite][tile_offset_byte * 2 + 1] & (1 << (7 - (x_pix % 8)));
 
         c = ((lo)? 1: 0) + ((hi)? 2: 0);
 
-        /* printf("%d ", c); */
+        /* Pull the actual color out of the background palette
+         * We shift our color on the palette by 'c', moving two bits for every
+         * color, so our target color end's up at the bottom, and then mask out
+         * the rest */
 
-        line[i] = gb_colors[c];
+        pal_col = (gpu->back_palette >> (c * 2)) & 0x03;
+
+        line[i] = gb_colors[pal_col];
     }
-
-    /* putchar('\n'); */
 }
 
 void gb_gpu_render_line(struct gb_gpu *gpu)
@@ -91,15 +89,9 @@ void gb_gpu_ctl_change(struct gb_gpu *gpu, uint8_t new_ctl)
     DEBUG_PRINTF("New ctl: 0x%02x\n", new_ctl);
 
     if (diff & GB_GPU_CTL_DISPLAY) {
-        if (!(new_ctl & GB_GPU_CTL_DISPLAY)) {
-            memset(gpu->screenbuf, 0x00, sizeof(gpu->screenbuf));
-            gb_gpu_display_screen(gpu);
-        } else {
-            memset(gpu->screenbuf, 0x00, sizeof(gpu->screenbuf));
-            gb_gpu_display_screen(gpu);
-        }
-        printf("VRAM: \n");
-        dump_mem(&gpu->vram.mem, 8 * 0x0400, 0x8000);
+        memset(gpu->screenbuf, 0x00, sizeof(gpu->screenbuf));
+        gb_gpu_display_screen(gpu);
+
         gpu->cur_line = 0;
         gpu->mode = GB_GPU_MODE_HBLANK;
     }

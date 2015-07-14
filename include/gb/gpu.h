@@ -31,6 +31,8 @@ enum {
 
 #define GB_IO_GPU_LY 0xFF44
 
+#define GB_IO_GPU_PALETTE 0xFF47
+
 #define GB_GPU_CLOCK_HBLANK 204
 #define GB_GPU_CLOCK_VBLANK 456
 #define GB_GPU_CLOCK_OAM    80

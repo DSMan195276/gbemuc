@@ -36,6 +36,10 @@ uint8_t gb_emu_io_read8(struct gb_emu *emu, uint16_t addr, uint16_t low)
     case GB_IO_GPU_LY:
         ret = emu->gpu.cur_line;
         break;
+
+    case GB_IO_GPU_PALETTE:
+        ret = emu->gpu.back_palette;
+        break;
     }
 
     return ret;
@@ -70,6 +74,10 @@ void gb_emu_io_write8(struct gb_emu *emu, uint16_t addr, uint16_t low, uint8_t b
 
     case GB_IO_GPU_LY:
         emu->gpu.cur_line = 0;
+        break;
+
+    case GB_IO_GPU_PALETTE:
+        emu->gpu.back_palette = byte;
         break;
     }
 }
