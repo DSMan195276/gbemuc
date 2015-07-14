@@ -399,7 +399,7 @@ static int add_a(struct gb_emu *emu, uint8_t opcode)
     }
 
     /* ADC commands add the carry flag */
-    if ((opcode & 0xF0) == 0x80 || opcode == 0xCE)
+    if ((opcode & 0x0F) >= 0x08 || opcode == 0xCE)
         carry = GB_FLAG_IS_SET(emu->cpu.r.b[GB_REG_F], GB_FLAG_CARRY);
 
     gb_emu_clock_tick(emu);
@@ -430,8 +430,10 @@ static int sub_a(struct gb_emu *emu, uint8_t opcode)
 
     /* SBC commands add the carry flag to the front of 'a'.
      * Since we do the SDC with the ADC command, we invert the carry bit. */
-    if ((opcode & 0xF0) == 0x90 || opcode == 0xDE)
-        carry = !GB_FLAG_IS_SET(emu->cpu.r.b[GB_REG_F], GB_FLAG_CARRY) << 8;
+    if ((opcode & 0x0F) >= 0x08 || opcode == 0xDE)
+        carry = !GB_FLAG_IS_SET(emu->cpu.r.b[GB_REG_F], GB_FLAG_CARRY);
+    else
+        carry = 1;
 
     emu->cpu.r.b[GB_REG_A] = adc(emu->cpu.r.b[GB_REG_A], ~tmp, &flags, carry);
     emu->cpu.r.b[GB_REG_F] = ~flags;
@@ -844,7 +846,7 @@ static int rla(struct gb_emu *emu, uint8_t opcode)
     if ((opcode & 0x10) == 0x10)
         carry = GB_FLAG_IS_SET(emu->cpu.r.b[GB_REG_F], GB_FLAG_CARRY);
     else
-        carry = tmp & 0x01;
+        carry = (tmp & 0x80) >> 7;
 
     uint16_t res = ((uint16_t)tmp << 1) + carry;
 
@@ -878,7 +880,7 @@ static int rra(struct gb_emu *emu, uint8_t opcode)
     if ((opcode & 0x10) == 0x10)
         carry = GB_FLAG_IS_SET(emu->cpu.r.b[GB_REG_F], GB_FLAG_CARRY) << 7;
     else
-        carry = tmp & 0x80;
+        carry = (tmp & 0x01) << 7;
 
     uint8_t res = carry + (tmp >> 1);
 
