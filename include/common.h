@@ -42,4 +42,10 @@
 
 void dump_mem(const void *buf, size_t len, uint32_t base_addr);
 
+#ifdef __GNUC__
+# define __unused __attribute__((unused))
+#else
+# define __unused
+#endif
+
 #endif

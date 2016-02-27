@@ -15,6 +15,10 @@ uint8_t gb_emu_io_read8(struct gb_emu *emu, uint16_t addr, uint16_t low)
     uint8_t ret = 0;
 
     switch (addr + low) {
+    case GB_IO_CPU_IF:
+        ret = emu->cpu.int_flags;
+        break;
+
     case GB_IO_GPU_CTL:
         ret = emu->gpu.ctl;
         break;
@@ -22,7 +26,7 @@ uint8_t gb_emu_io_read8(struct gb_emu *emu, uint16_t addr, uint16_t low)
     case GB_IO_GPU_STATUS:
         ret = emu->gpu.status & 0xF8;
         ret |= emu->gpu.mode;
-        /* FIXME: Insert LY == LYC check here */
+        ret |= (emu->gpu.cur_line == emu->gpu.cur_line_cmp)? 4: 0;
         break;
 
     case GB_IO_GPU_SCRY:
@@ -37,8 +41,28 @@ uint8_t gb_emu_io_read8(struct gb_emu *emu, uint16_t addr, uint16_t low)
         ret = emu->gpu.cur_line;
         break;
 
+    case GB_IO_GPU_LYC:
+        ret = emu->gpu.cur_line_cmp;
+        break;
+
     case GB_IO_GPU_PALETTE:
         ret = emu->gpu.back_palette;
+        break;
+
+    case GB_IO_GPU_WX:
+        ret = emu->gpu.window_x;
+        break;
+
+    case GB_IO_GPU_WY:
+        ret = emu->gpu.window_y;
+        break;
+
+    case GB_IO_OBJ_PAL1:
+        ret = emu->gpu.obj_pal[0];
+        break;
+
+    case GB_IO_OBJ_PAL2:
+        ret = emu->gpu.obj_pal[1];
         break;
     }
 
@@ -52,6 +76,11 @@ void gb_emu_io_write8(struct gb_emu *emu, uint16_t addr, uint16_t low, uint8_t b
     case GB_IO_BIOS_FLAG:
         if (byte == 1)
             emu->mmu.bios_flag = 1;
+        DEBUG_ON();
+        break;
+
+    case GB_IO_CPU_IF:
+        emu->cpu.int_flags = byte;
         break;
 
     case GB_IO_GPU_CTL:
@@ -60,8 +89,8 @@ void gb_emu_io_write8(struct gb_emu *emu, uint16_t addr, uint16_t low, uint8_t b
 
     case GB_IO_GPU_STATUS:
         /* BIT 2 is preserved */
-        emu->gpu.ctl &= 0x04;
-        emu->gpu.ctl |= byte;
+        emu->gpu.status &= 0x04;
+        emu->gpu.status |= byte;
         break;
 
     case GB_IO_GPU_SCRY:
@@ -76,8 +105,32 @@ void gb_emu_io_write8(struct gb_emu *emu, uint16_t addr, uint16_t low, uint8_t b
         emu->gpu.cur_line = 0;
         break;
 
+    case GB_IO_GPU_LYC:
+        emu->gpu.cur_line_cmp = byte;
+        break;
+
     case GB_IO_GPU_PALETTE:
         emu->gpu.back_palette = byte;
+        break;
+
+    case GB_IO_GPU_WX:
+        emu->gpu.window_x = byte;
+        break;
+
+    case GB_IO_GPU_WY:
+        emu->gpu.window_y = byte;
+        break;
+
+    case GB_IO_GPU_DMA:
+        gb_gpu_dma(emu, byte);
+        break;
+
+    case GB_IO_OBJ_PAL1:
+        emu->gpu.obj_pal[0] = byte;
+        break;
+
+    case GB_IO_OBJ_PAL2:
+        emu->gpu.obj_pal[1] = byte;
         break;
     }
 }

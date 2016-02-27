@@ -5,7 +5,7 @@
 #include <time.h>
 
 #include "debug.h"
-#include "gb.h"
+#include "gb_internal.h"
 #include "gb/cpu.h"
 
 /* A map used by instructions to convert a numeral in an opcode to actual
@@ -65,7 +65,6 @@ static const uint8_t reg_map_16bit_af[4] = {
     GB_REG_HL,
     GB_REG_AF,
 };
-
 
 /*
  *
@@ -592,10 +591,8 @@ static int dec_reg(struct gb_emu *emu, uint8_t opcode)
     uint8_t flags = emu->cpu.r.b[GB_REG_F] & GB_FLAG_CARRY;
     uint8_t tmp;
 
-    DEBUG_PRINTF("DEC %d\n", src);
 
     tmp = read_8bit_reg(emu, src, &cycles);
-    DEBUG_PRINTF("DEC VALUE: %d\n", tmp);
 
     if ((tmp & 0x0F) == 0)
         flags |= GB_FLAG_HCARRY;
@@ -1198,7 +1195,7 @@ static int call(struct gb_emu *emu, uint8_t opcode)
 static int rst(struct gb_emu *emu, uint8_t opcode)
 {
     int cycles = 0;
-    uint16_t addr = (opcode & 0x31) >> 3;
+    uint16_t addr = ((opcode & 0x38) >> 3);
 
     addr *= 0x08;
 
@@ -1256,9 +1253,7 @@ static int ret(struct gb_emu *emu, uint8_t opcode)
     }
 
     if (jump) {
-        DEBUG_PRINTF("RET OLD: PC = 0x%04x, SP = 0x%04x\n", emu->cpu.r.w[GB_REG_PC], emu->cpu.r.w[GB_REG_SP]);
         cycles += pop_val(emu, emu->cpu.r.w + GB_REG_PC);
-        DEBUG_PRINTF("RET: PC = 0x%04x, SP = 0x%04x\n", emu->cpu.r.w[GB_REG_PC], emu->cpu.r.w[GB_REG_SP]);
     }
 
     return cycles;
@@ -1287,45 +1282,37 @@ static int z80_emu_run_cb_inst(struct gb_emu *emu)
 
     switch (opcode) {
     case 0x30 ... 0x37:
-        DEBUG_PRINTF("SWAP reg\n");
         cycles = swap(emu, opcode);
         break;
 
     case 0x00 ... 0x07:
     case 0x10 ... 0x17:
-        DEBUG_PRINTF("RLA reg\n");
         cycles = rla(emu, opcode);
         break;
 
     case 0x08 ... 0x0F:
     case 0x18 ... 0x1F:
-        DEBUG_PRINTF("RRA reg\n");
         cycles = rra(emu, opcode);
         break;
 
     case 0x20 ... 0x27:
-        DEBUG_PRINTF("SLA reg\n");
         cycles = sla(emu, opcode);
         break;
 
     case 0x28 ... 0x2F:
     case 0x38 ... 0x3F:
-        DEBUG_PRINTF("SRA reg\n");
         cycles = sra(emu, opcode);
         break;
 
     case 0x40 ... 0x7F:
-        DEBUG_PRINTF("BIT b, reg\n");
         cycles = bit(emu, opcode);
         break;
 
     case 0xC0 ... 0xFF:
-        DEBUG_PRINTF("SET b, reg\n");
         cycles = set(emu, opcode);
         break;
 
     case 0x80 ... 0xB7:
-        DEBUG_PRINTF("RES b, reg\n");
         cycles = res(emu, opcode);
         break;
     }
@@ -1347,14 +1334,12 @@ int gb_emu_run_inst(struct gb_emu *emu, uint8_t opcode)
     case 0x1E:
     case 0x26:
     case 0x2E:
-        DEBUG_PRINTF("LD reg, imm\n");
         cycles = load8_reg_imm(emu, opcode);
         break;
 
     case 0x40 ... 0x75: /* 0x76 isn't valid */
     case 0x77 ... 0x7F: /* It's used as HALT down below */
     case 0x36:
-        DEBUG_PRINTF("LD reg, reg\n");
         cycles = load8_reg_reg(emu, opcode);
         break;
 
@@ -1366,7 +1351,6 @@ int gb_emu_run_inst(struct gb_emu *emu, uint8_t opcode)
     case 0x3A:
     case 0x2A:
     case 0xF0:
-        DEBUG_PRINTF("LD a, (n)\n");
         cycles = load8_a_extra(emu, opcode);
         break;
 
@@ -1377,7 +1361,6 @@ int gb_emu_run_inst(struct gb_emu *emu, uint8_t opcode)
     case 0x32:
     case 0x22:
     case 0xE0:
-        DEBUG_PRINTF("LD (n), a\n");
         cycles = load8_extra_a(emu, opcode);
         break;
 
@@ -1385,22 +1368,18 @@ int gb_emu_run_inst(struct gb_emu *emu, uint8_t opcode)
     case 0x11:
     case 0x21:
     case 0x31:
-        DEBUG_PRINTF("LD16 reg, imm\n");
         cycles = load16_reg_imm(emu, opcode);
         break;
 
     case 0xF9:
-        DEBUG_PRINTF("LD SP, HL\n");
         cycles = load_sp_hl(emu, opcode);
         break;
 
     case 0xF8:
-        DEBUG_PRINTF("LD HL, SP+n\n");
         cycles = load_hl_sp_n(emu, opcode);
         break;
 
     case 0x08:
-        DEBUG_PRINTF("LD (nn), SP\n");
         cycles = load_mem_sp(emu, opcode);
         break;
 
@@ -1408,7 +1387,6 @@ int gb_emu_run_inst(struct gb_emu *emu, uint8_t opcode)
     case 0xD5:
     case 0xE5:
     case 0xF5:
-        DEBUG_PRINTF("PUSH\n");
         cycles = push(emu, opcode);
         break;
 
@@ -1416,7 +1394,6 @@ int gb_emu_run_inst(struct gb_emu *emu, uint8_t opcode)
     case 0xD1:
     case 0xE1:
     case 0xF1:
-        DEBUG_PRINTF("POP\n");
         cycles = pop(emu, opcode);
         break;
 
@@ -1424,7 +1401,6 @@ int gb_emu_run_inst(struct gb_emu *emu, uint8_t opcode)
     case 0xC6:
     case 0x88 ... 0x8F:
     case 0xCE:
-        DEBUG_PRINTF("ADD a, reg\n");
         cycles = add_a(emu, opcode);
         break;
 
@@ -1432,31 +1408,26 @@ int gb_emu_run_inst(struct gb_emu *emu, uint8_t opcode)
     case 0xD6:
     case 0x98 ... 0x9F:
     case 0xDE:
-        DEBUG_PRINTF("SUB reg\n");
         cycles = sub_a(emu, opcode);
         break;
 
     case 0xA0 ... 0xA7:
     case 0xE6:
-        DEBUG_PRINTF("AND reg\n");
         cycles = and_a(emu, opcode);
         break;
 
     case 0xB0 ... 0xB7:
     case 0xF6:
-        DEBUG_PRINTF("OR reg\n");
         cycles = or_a(emu, opcode);
         break;
 
     case 0xA8 ... 0xAF:
     case 0xEE:
-        DEBUG_PRINTF("XOR reg\n");
         cycles = xor_a(emu, opcode);
         break;
 
     case 0xB8 ... 0xBF:
     case 0xFE:
-        DEBUG_PRINTF("CP reg\n");
         cycles = cp_a(emu, opcode);
         break;
 
@@ -1468,7 +1439,6 @@ int gb_emu_run_inst(struct gb_emu *emu, uint8_t opcode)
     case 0x2C:
     case 0x34:
     case 0x3C:
-        DEBUG_PRINTF("INC reg\n");
         cycles = inc_reg(emu, opcode);
         break;
 
@@ -1480,7 +1450,6 @@ int gb_emu_run_inst(struct gb_emu *emu, uint8_t opcode)
     case 0x2D:
     case 0x35:
     case 0x3D:
-        DEBUG_PRINTF("DEC reg\n");
         cycles = dec_reg(emu, opcode);
         break;
 
@@ -1488,12 +1457,10 @@ int gb_emu_run_inst(struct gb_emu *emu, uint8_t opcode)
     case 0x19:
     case 0x29:
     case 0x39:
-        DEBUG_PRINTF("ADD HL, reg\n");
         cycles = add_hl_reg16(emu, opcode);
         break;
 
     case 0xE8:
-        DEBUG_PRINTF("ADD SP, imm\n");
         cycles = add_sp_imm(emu, opcode);
         break;
 
@@ -1501,7 +1468,6 @@ int gb_emu_run_inst(struct gb_emu *emu, uint8_t opcode)
     case 0x13:
     case 0x23:
     case 0x33:
-        DEBUG_PRINTF("INC16 reg\n");
         cycles = inc_reg16(emu, opcode);
         break;
 
@@ -1509,64 +1475,52 @@ int gb_emu_run_inst(struct gb_emu *emu, uint8_t opcode)
     case 0x1B:
     case 0x2B:
     case 0x3B:
-        DEBUG_PRINTF("DEC16 reg\n");
         cycles = dec_reg16(emu, opcode);
         break;
 
     case 0x27:
-        DEBUG_PRINTF("DAA\n");
         cycles = daa(emu, opcode);
         break;
 
     case 0x2F:
-        DEBUG_PRINTF("CPL\n");
         cycles = cpl(emu, opcode);
         break;
 
     case 0x3F:
-        DEBUG_PRINTF("CCF\n");
         cycles = ccf(emu, opcode);
         break;
 
     case 0x37:
-        DEBUG_PRINTF("SCF\n");
         cycles = scf(emu, opcode);
         break;
 
     case 0x00:
-        DEBUG_PRINTF("NOP\n");
         cycles = nop(emu, opcode);
         break;
 
     case 0x76:
-        DEBUG_PRINTF("HALT\n");
         cycles = halt(emu, opcode);
         break;
 
     case 0x10:
-        DEBUG_PRINTF("STOP\n");
         cycles = stop(emu, opcode);
         break;
 
     case 0xF3:
-        DEBUG_PRINTF("DI\n");
         cycles = di(emu, opcode);
         break;
 
     case 0xFB:
-        DEBUG_PRINTF("EI\n");
         cycles = ei(emu, opcode);
         break;
 
     case 0x07:
     case 0x17:
-        DEBUG_PRINTF("RLA\n");
         cycles = rla(emu, opcode);
         break;
 
     case 0x0F:
     case 0x1F:
-        DEBUG_PRINTF("RRA\n");
         cycles = rra(emu, opcode);
         break;
 
@@ -1575,12 +1529,10 @@ int gb_emu_run_inst(struct gb_emu *emu, uint8_t opcode)
     case 0xCA:
     case 0xD2:
     case 0xDA:
-        DEBUG_PRINTF("JP cc, nn\n");
         cycles = jp(emu, opcode);
         break;
 
     case 0xE9:
-        DEBUG_PRINTF("JP (HL)\n");
         cycles = jp_hl(emu, opcode);
         break;
 
@@ -1589,7 +1541,6 @@ int gb_emu_run_inst(struct gb_emu *emu, uint8_t opcode)
     case 0x28:
     case 0x30:
     case 0x38:
-        DEBUG_PRINTF("JP cc, reg\n");
         cycles = jp_rel(emu, opcode);
         break;
 
@@ -1598,7 +1549,6 @@ int gb_emu_run_inst(struct gb_emu *emu, uint8_t opcode)
     case 0xCC:
     case 0xD4:
     case 0xDC:
-        DEBUG_PRINTF("CALL cc, nn\n");
         cycles = call(emu, opcode);
         break;
 
@@ -1610,7 +1560,6 @@ int gb_emu_run_inst(struct gb_emu *emu, uint8_t opcode)
     case 0xEF:
     case 0xF7:
     case 0xFF:
-        DEBUG_PRINTF("RST nn\n");
         cycles = rst(emu, opcode);
         break;
 
@@ -1619,17 +1568,14 @@ int gb_emu_run_inst(struct gb_emu *emu, uint8_t opcode)
     case 0xC8:
     case 0xD0:
     case 0xD8:
-        DEBUG_PRINTF("RET\n");
         cycles = ret(emu, opcode);
         break;
 
     case 0xD9:
-        DEBUG_PRINTF("RETI\n");
         cycles = reti(emu, opcode);
         break;
 
     case 0xCB:
-        DEBUG_PRINTF("CB\n");
         cycles = z80_emu_run_cb_inst(emu);
         break;
     }
@@ -1647,96 +1593,109 @@ int gb_emu_run_inst(struct gb_emu *emu, uint8_t opcode)
     return cycles;
 }
 
+static int gb_emu_check_interrupt(struct gb_emu *emu)
+{
+    int cycles = 0;
+    uint8_t int_check = emu->cpu.int_enabled & emu->cpu.int_flags;
+    int i;
+
+    /* Lower number interrupts have priority */
+    for (i = 0; i < GB_INT_TOTAL; i++) {
+        if (int_check & (1 << i)) {
+            DEBUG_PRINTF("INTERRUPT: %d - (0x%02x IE, 0x%02x IF)\n", i, emu->cpu.int_enabled, emu->cpu.int_flags);
+            cycles += push_val(emu, emu->cpu.r.w[GB_REG_PC]);
+
+            emu->cpu.r.w[GB_REG_PC] = GB_INT_BASE_ADDR + i * 0x8;
+            emu->cpu.ime = 0;
+
+            emu->cpu.int_flags &= ~(1 << i); /* Reset this interrupt's bit, since we're servicing it */
+            emu->cpu.halted = 0;
+            break;
+        }
+    }
+
+    return cycles;
+}
+
 int gb_emu_cpu_run_next_inst(struct gb_emu *emu)
 {
-    DEBUG_PRINTF("PC: 0x%04x\n", emu->cpu.r.w[GB_REG_PC]);
+    int cycles = 0;
+
+    if (emu->cpu.halted) {
+        /* When we're halted, the clock still ticks */
+        gb_emu_clock_tick(emu);
+        cycles += 4;
+        goto inst_end;
+    }
+
+    if (emu->hook_flag) {
+        uint8_t bytes[3];
+
+        bytes[0] = gb_emu_read8(emu, emu->cpu.r.w[GB_REG_PC]);
+        bytes[1] = gb_emu_read8(emu, emu->cpu.r.w[GB_REG_PC] + 1);
+        bytes[2] = gb_emu_read8(emu, emu->cpu.r.w[GB_REG_PC] + 2);
+
+        if (emu->cpu.hooks && emu->cpu.hooks->next_inst)
+            (emu->cpu.hooks->next_inst) (emu->cpu.hooks, emu, bytes);
+    }
 
     gb_emu_clock_tick(emu);
     uint8_t opcode = gb_emu_next_pc8(emu);
 
-    DEBUG_PRINTF("Opcode: 0x%08x\n", opcode);
-
     /* The extra four accounts for the read from PC above */
-    return gb_emu_run_inst(emu, opcode) + 4;
+    cycles = gb_emu_run_inst(emu, opcode) + 4;
+
+    if (emu->hook_flag)
+        if (emu->cpu.hooks && emu->cpu.hooks->end_inst)
+            (emu->cpu.hooks->end_inst) (emu->cpu.hooks, emu);
+
+inst_end:
+
+    if (emu->cpu.ime)
+        cycles += gb_emu_check_interrupt(emu);
+
+    if (emu->break_flag) {
+        int k;
+        uint16_t pc = emu->cpu.r.w[GB_REG_PC];
+        for (k = 0; k < emu->breakpoint_count; k++) {
+            if (pc == emu->breakpoints[k]) {
+                emu->stop_emu = 1;
+                emu->reason = GB_EMU_BREAK;
+            }
+        }
+   }
+
+    return cycles;
 }
 
-static void diff(struct timespec start, struct timespec end, struct timespec *temp)
-{
-    if ((end.tv_nsec-start.tv_nsec)<0) {
-        temp->tv_sec = end.tv_sec-start.tv_sec-1;
-        temp->tv_nsec = 1000000000+end.tv_nsec-start.tv_nsec;
-    } else {
-        temp->tv_sec = end.tv_sec-start.tv_sec;
-        temp->tv_nsec = end.tv_nsec-start.tv_nsec;
-    }
-}
-
-void gb_run(struct gb_emu *emu)
+enum gb_emu_stop gb_run(struct gb_emu *emu)
 {
     int i;
     uint64_t cycles = 0;
-    struct timespec start, end, d, sle;
-    float t, total, s;
-    int count = 0;
 
-start:
-    cycles = 0;
-    clock_gettime(CLOCK_REALTIME, &start);
+    emu->stop_emu = 0;
 
+    while (!emu->stop_emu) {
+        cycles = 0;
 
-    for (i = 0; i < 20000; i++) {
-        /* gb_emu_dump_regs(emu);
-        putchar('\n');
-        printf("INST:\n"); */
-        DEBUG_PRINTF("INST:\n");
-        cycles += gb_emu_cpu_run_next_inst(emu);
-        if (emu->cpu.r.w[GB_REG_PC] > 0x0100) {
-            DEBUG_PRINTF("OUT OF BIOS!!!\n");
-            DEBUG_PRINTF("STACK: 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x\n",
-                    gb_emu_read8(emu, emu->cpu.r.w[GB_REG_SP] - 2),
-                    gb_emu_read8(emu, emu->cpu.r.w[GB_REG_SP] - 1),
-                    gb_emu_read8(emu, emu->cpu.r.w[GB_REG_SP]),
-                    gb_emu_read8(emu, emu->cpu.r.w[GB_REG_SP] + 1),
-                    gb_emu_read8(emu, emu->cpu.r.w[GB_REG_SP] + 2),
-                    gb_emu_read8(emu, emu->cpu.r.w[GB_REG_SP] + 3));
-            getchar();
+        for (i = 0; i < 20000; i++) {
+            cycles += gb_emu_cpu_run_next_inst(emu);
+            if (emu->stop_emu)
+                break;
         }
     }
 
-    clock_gettime(CLOCK_REALTIME, &end);
+    return emu->reason;
+}
 
-    diff(start, end, &d);
-    t = (float)d.tv_sec + (float)d.tv_nsec / (1000000000);
-    total = ((float)cycles) / GB_HZ;
+uint8_t gb_cpu_int_read8(struct gb_emu *emu, uint16_t addr, uint16_t low)
+{
+    return emu->cpu.int_enabled;
+}
 
-
-    if (total > t) {
-        s = total - t;
-        sle.tv_sec = (int)s;
-        sle.tv_nsec = (s - sle.tv_sec) * (1000000000) - 100000;
-        printf("Sec: %d, nsec: %d\n", sle.tv_sec, sle.tv_nsec);
-        nanosleep(&sle, NULL);
-    }
-
-    clock_gettime(CLOCK_REALTIME, &end);
-
-    diff(start, end, &d);
-    t = (float)d.tv_sec + (float)d.tv_nsec / (1000000000);
-
-    printf("Time: %f\n", t);
-    printf("Cycles: %lld\n", cycles);
-
-    printf("Cycles/Second: %f\n", cycles / t);
-    printf("CPU HZ: %d\n", GB_HZ);
-    printf("CPU C/S: %f\n", total);
-
-    sle.tv_nsec = 0;
-    sle.tv_sec = 2;
-
-    nanosleep(&sle, NULL);
-    count++;
-    if (count < 100)
-        goto start;
+void gb_cpu_int_write8(struct gb_emu *emu, uint16_t addr, uint16_t low, uint8_t byte)
+{
+    emu->cpu.int_enabled = byte;
 }
 
 void gb_emu_dump_regs(struct gb_emu *emu, char *output_buf)
@@ -1794,6 +1753,8 @@ void gb_emu_dump_regs(struct gb_emu *emu, char *output_buf)
         len += sprintf(buf + len, "%s: 0x%04x ", reg16->id, cpu->r.w[reg16->reg]);
     len += sprintf(buf + len, "\n");
 
-    sprintf(output_buf, "%s", buf);
+    output_buf += sprintf(output_buf, "%s", buf);
+
+    output_buf += sprintf(output_buf, "IME: %d, IE: 0x%02x, IF: 0x%02x, HALT: %d, STOP: %d\n", cpu->ime, cpu->int_enabled, cpu->int_flags, cpu->halted, cpu->stopped);
 }
 

@@ -16,10 +16,27 @@ struct gb_mmu_entry {
     void (*write16) (struct gb_emu *, uint16_t addr, uint16_t low, uint16_t val);
 };
 
-struct gb_mmu {
-    struct slist_head entry_list;
+extern struct gb_mmu_entry gb_mbc0_mmu_entry, gb_mbc0_eram_mmu_entry;
+extern struct gb_mmu_entry gb_mbc1_mmu_entry, gb_mbc1_eram_mmu_entry;
 
+struct gb_mmu_mbc1 {
+    uint8_t ram_enable;
+    uint8_t rom_ram_mode;
+
+    uint8_t rom_bank;
+    uint8_t ram_rom_bank_upper;
+};
+
+struct gb_mmu {
     int bios_flag;
+    struct gb_mmu_mbc1 mbc1;
+
+    struct gb_mmu_entry *mbc_controller, *eram_controller;
+
+    char eram[8 * 1024][4]; /* External RAM */
+
+    char wram[8 * 1024]; /* Working RAM space */
+    char zram[128]; /* Zero-page RAM */
 };
 
 void gb_mmu_add_mmu_entry(struct gb_mmu *mmu, struct gb_mmu_entry *entry);

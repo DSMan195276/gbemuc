@@ -30,8 +30,14 @@ enum {
 #define GB_IO_GPU_SCRX 0xFF43
 
 #define GB_IO_GPU_LY 0xFF44
+#define GB_IO_GPU_LYC 0xFF45
 
 #define GB_IO_GPU_PALETTE 0xFF47
+
+#define GB_IO_GPU_WY 0xFF4A
+#define GB_IO_GPU_WX 0xFF4B
+
+#define GB_IO_GPU_DMA 0xFF46
 
 #define GB_GPU_CLOCK_HBLANK 204
 #define GB_GPU_CLOCK_VBLANK 456
@@ -73,6 +79,9 @@ enum gb_gpu_mode {
 #define GB_GPU_SPRITE_FLAG_Y_FLIP  (1 << 6)
 #define GB_GPU_SPRITE_FLAG_BEHIND_BG (1 << 7)
 
+#define GB_IO_OBJ_PAL1 0xFF48
+#define GB_IO_OBJ_PAL2 0xFF49
+
 struct gb_gpu {
     union gb_gpu_color_u screenbuf[GB_SCREEN_HEIGHT * GB_SCREEN_WIDTH];
 
@@ -82,8 +91,11 @@ struct gb_gpu {
 
     uint8_t ctl, status;
     uint8_t scroll_x, scroll_y;
+    uint8_t window_x, window_y;
     uint8_t cur_line;
+    uint8_t cur_line_cmp;
     uint8_t back_palette;
+    uint8_t obj_pal[2];
 
     union {
         uint8_t mem[8 * 0x0400];
@@ -106,6 +118,7 @@ void gb_emu_gpu_tick(struct gb_emu *);
 void gb_gpu_init(struct gb_gpu *, struct gb_gpu_display *display);
 void gb_gpu_display_screen(struct gb_gpu *gpu);
 void gb_gpu_ctl_change(struct gb_gpu *, uint8_t new_ctl);
+void gb_gpu_dma(struct gb_emu *emu, uint8_t dma_addr);
 
 uint8_t gb_gpu_vram_read8(struct gb_emu *, uint16_t addr, uint16_t low);
 uint16_t gb_gpu_vram_read16(struct gb_emu *, uint16_t addr, uint16_t low);

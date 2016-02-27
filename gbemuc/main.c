@@ -11,10 +11,10 @@
 #include "gb/debugger.h"
 #include "gb.h"
 
+static struct gb_emu emu;
+
 int main(int argc, char **argv)
 {
-    struct gb_emu emu;
-    struct gb_rom rom;
     struct gb_gpu_display *disp;
     SDL_Rect rect;
     SDL_Window *window;
@@ -25,7 +25,6 @@ int main(int argc, char **argv)
     gb_emu_init(&emu, NULL);
 
     if (argc == 2) {
-        gb_rom_init(&rom);
         printf("Loading rom: %s\n", argv[1]);
         gb_emu_rom_open(&emu, argv[1]);
 
@@ -47,6 +46,7 @@ int main(int argc, char **argv)
 
     disp = gb_sdl_display_new(&rect, renderer);
 
+    DEBUG_OFF();
     gb_emu_set_display(&emu, disp);
     gb_debugger_run(&emu);
 

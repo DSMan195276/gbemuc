@@ -8,6 +8,7 @@
 #include "debug.h"
 
 static FILE *debugfile;
+int global_debug_flag = 1;
 
 void debug_init(void)
 {
@@ -37,5 +38,4 @@ void debug_printf(const char *file, const char *func, const char *line, const ch
 
     return ;
 }
-
 

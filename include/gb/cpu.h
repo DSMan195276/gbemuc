@@ -36,13 +36,37 @@ enum {
     GB_FLAG_CARRY  = 0x10
 };
 
+struct gb_emu;
+
+/* Called right *before* that instruction is executed */
+struct gb_cpu_hooks {
+    void (*next_inst) (struct gb_cpu_hooks *, struct gb_emu *, uint8_t *inst);
+    void (*end_inst) (struct gb_cpu_hooks *, struct gb_emu *);
+};
+
 #define GB_FLAG_IS_SET(flags, flag) (((flags) & flag) == flag)
+
+enum {
+    GB_INT_VBLANK,
+    GB_INT_LCD_STAT,
+    GB_INT_TIMER,
+    GB_INT_SERIAL,
+    GB_INT_JOYPAD,
+    GB_INT_TOTAL
+};
+
+/* The first interrupt's address */
+#define GB_INT_BASE_ADDR 0x0040
+
+#define GB_IO_CPU_IF 0xFF0F
 
 struct gb_cpu {
     union {
         uint8_t b[GB_REG_TOTAL * 2];
         uint16_t w[GB_REG_TOTAL];
     } r;
+
+    uint8_t last_inst[3]; /* last opcode, and optional two read values afterward */
 
     int m, t;
 
@@ -56,6 +80,11 @@ struct gb_cpu {
      * 'int_count' is decremented at the end of running an instruction. */
     unsigned int next_ime:1;
     unsigned int int_count :2;
+
+    uint8_t int_enabled; /* Bits corespond to enabled interrupts */
+    uint8_t int_flags; /* Bits correspond to what interrupts have been triggered */
+
+    struct gb_cpu_hooks *hooks;
 };
 
 struct gb_emu;

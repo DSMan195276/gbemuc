@@ -10,86 +10,86 @@
 #include "cmd_parser.h"
 #include "gb.h"
 #include "gb/cpu.h"
+#include "gb/disasm.h"
 #include "gb/debugger.h"
 #include "debug.h"
 
-struct gb_debugger_breakpoint {
-    uint16_t addr;
-};
-
 struct gb_debugger {
-    size_t breakpoint_count;
-    struct gb_debugger_breakpoint *breakpoints;
-
     int exit_flag;
 };
 
 static struct cmd_desc debugger_cmds[];
-
 static const char *prompt = " > ";
 
 static void debugger_breakpoint(int argc, char **argv, va_list args)
 {
-    struct gb_debugger *debugger = va_arg(args, struct gb_debugger *);
+    struct gb_debugger *__unused debugger = va_arg(args, struct gb_debugger *);
     struct gb_emu *emu = va_arg(args, struct gb_emu *);
     uint16_t addr;
 
     if (argc != 1) {
         int i;
-        for (i = 0; i < debugger->breakpoint_count; i++)
-            printf("%d - 0x%04x\n", i + 1, debugger->breakpoints[i].addr);
+        for (i = 0; i < emu->breakpoint_count; i++)
+            printf("%d - 0x%04x\n", i + 1, emu->breakpoints[i]);
         return;
     }
 
     sscanf(argv[0], "%hi", &addr);
 
-    debugger->breakpoints = realloc(debugger->breakpoints, (++debugger->breakpoint_count) * sizeof(struct gb_debugger_breakpoint));
-
-    debugger->breakpoints[debugger->breakpoint_count - 1].addr = addr;
+    gb_emu_add_breakpoint(emu, addr);
 }
 
-static volatile int stop_run = 0;
+static void debugger_breakpoint_on(int argc, char **argv, va_list args)
+{
+    struct gb_debugger *__unused debugger = va_arg(args, struct gb_debugger *);
+    struct gb_emu *emu = va_arg(args, struct gb_emu *);
+
+    emu->break_flag = 1;
+}
+
+static void debugger_breakpoint_off(int argc, char **argv, va_list args)
+{
+    struct gb_debugger *__unused debugger = va_arg(args, struct gb_debugger *);
+    struct gb_emu *emu = va_arg(args, struct gb_emu *);
+
+    emu->break_flag = 0;
+}
+
+static struct gb_emu *signal_emu;
 
 static void debugger_run_sigint(int signum)
 {
-    stop_run = 1;
+    signal_emu->stop_emu = 1;
+    signal_emu->reason = GB_EMU_STOP;
 }
 
 static void debugger_run(int argc, char **argv, va_list args)
 {
-    struct gb_debugger *debugger = va_arg(args, struct gb_debugger *);
+    struct gb_debugger *__unused debugger = va_arg(args, struct gb_debugger *);
     struct gb_emu *emu = va_arg(args, struct gb_emu *);
     struct sigaction new_act, old_act;
-    int cycles;
-    int i;
+    enum gb_emu_stop result;
 
     memset(&new_act, 0, sizeof(new_act));
     new_act.sa_handler = debugger_run_sigint;
 
     sigaction(SIGINT, &new_act, &old_act);
 
-    stop_run = 0;
+    signal_emu = emu;
 
-    do {
-        cycles += gb_emu_cpu_run_next_inst(emu);
+    result = gb_run(emu);
 
-        for (i = 0; i < debugger->breakpoint_count; i++) {
-            if (emu->cpu.r.w[GB_REG_PC] == debugger->breakpoints[i].addr) {
-                printf("Breakpoint %d - 0x%04x\n", i + 1, debugger->breakpoints[i].addr);
-                stop_run = 2;
-            }
-        }
-    } while (!stop_run);
-
-    if (stop_run == 1)
+    if (result == GB_EMU_STOP)
         printf("PC: 0x%04x\n", emu->cpu.r.w[GB_REG_PC]);
+    else
+        printf("BREAK: 0x%04x\n", emu->cpu.r.w[GB_REG_PC]);
 
     sigaction(SIGINT, &old_act, NULL);
 }
 
 static void debugger_step(int argc, char **argv, va_list args)
 {
-    struct gb_debugger *debugger = va_arg(args, struct gb_debugger *);
+    struct gb_debugger *__unused debugger = va_arg(args, struct gb_debugger *);
     struct gb_emu *emu = va_arg(args, struct gb_emu *);
     int count = 1;
 
@@ -104,18 +104,39 @@ static void debugger_step(int argc, char **argv, va_list args)
 
 static void debugger_dump_regs(int argc, char **argv, va_list args)
 {
-    struct gb_debugger *debugger = va_arg(args, struct gb_debugger *);
+    struct gb_debugger *__unused debugger = va_arg(args, struct gb_debugger *);
     struct gb_emu *emu = va_arg(args, struct gb_emu *);
-    char reg_buf[163];
+    char reg_buf[263];
 
     gb_emu_dump_regs(emu, reg_buf);
     printf("%s", reg_buf);
 }
 
+static void debugger_print_addr(int argc, char **argv, va_list args)
+{
+    struct gb_debugger *__unused debugger = va_arg(args, struct gb_debugger *);
+    struct gb_emu *emu = va_arg(args, struct gb_emu *);
+    uint8_t val;
+    uint16_t addr;
+
+    if (argc != 1) {
+        printf("Please supply a 16-bit address\n");
+        return;
+    }
+
+    sscanf(argv[0], "%hi", &addr);
+
+    val = gb_emu_read8(emu, addr);
+
+    printf("Value at 0x%04x: 0x%02x (%d, %d)\n", addr, val, val, (int8_t)val);
+
+    return ;
+}
+
 static void debugger_exit(int argc, char **argv, va_list args)
 {
     struct gb_debugger *debugger = va_arg(args, struct gb_debugger *);
-    struct gb_emu *emu = va_arg(args, struct gb_emu *);
+    struct gb_emu *__unused emu = va_arg(args, struct gb_emu *);
 
     debugger->exit_flag = 1;
 }
@@ -129,18 +150,49 @@ static void debugger_help(int argc, char **argv, va_list args)
         printf("%-12s%s%s - %s\n", desc->cmd_id, desc->args? " - ": "", desc->args? desc->args: "", desc->help);
 }
 
+static void debugger_debug_off(int argc, char **argv, va_list args)
+{
+    struct gb_debugger *__unused debugger = va_arg(args, struct gb_debugger *);
+    struct gb_emu *emu = va_arg(args, struct gb_emu *);
+
+    emu->hook_flag = 0;
+}
+
+static void debugger_debug_on(int argc, char **argv, va_list args)
+{
+    struct gb_debugger *__unused debugger = va_arg(args, struct gb_debugger *);
+    struct gb_emu *emu = va_arg(args, struct gb_emu *);
+
+    emu->hook_flag = 1;
+}
+
 static struct cmd_desc debugger_cmds[] = {
-    { 'd', "breakpoint", debugger_breakpoint,
+    { 'b', "breakpoint", debugger_breakpoint,
         "Set a breakpoint at an address",
         "<addr>" },
+    { '\0', "breakpoint-on", debugger_breakpoint_on,
+        "Turn on breakpoints",
+        NULL },
+    { '\0', "breakpoint-off", debugger_breakpoint_off,
+        "Turn on breakpoints",
+        NULL },
     { 'r', "run", debugger_run,
         "Start emulator",
         NULL },
     { 's', "step", debugger_step,
         "Step <count> instructions - default is one",
         "<count>" },
-    { '\0', "dump-regs", debugger_dump_regs,
+    { 'd', "dump-regs", debugger_dump_regs,
         "Display current value of registers",
+        NULL },
+    { 'p', "print", debugger_print_addr,
+        "Display the value at an address in memory",
+        "<addr>" },
+    { '\0', "debug-on", debugger_debug_on,
+        "Turns on Debugging output",
+        NULL },
+    { '\0', "debug-off", debugger_debug_off,
+        "Turns off debugging output",
         NULL },
     { '\0', "exit", debugger_exit,
         "Exit the debugger",
@@ -154,6 +206,25 @@ static struct cmd_desc debugger_cmds[] = {
     { '\0', NULL, NULL, NULL, NULL }
 };
 
+static void debugger_print_next_inst(struct gb_cpu_hooks *hooks, struct gb_emu *emu, uint8_t *inst)
+{
+    char buf[30] = { 0 };
+
+    gb_disasm_inst(buf, inst);
+    printf("(0x%02x)%s\n", inst[0], buf);
+}
+
+static void debugger_print_end_inst(struct gb_cpu_hooks *hooks, struct gb_emu *emu)
+{
+    char reg_buf[263];
+
+    gb_emu_dump_regs(emu, reg_buf);
+    printf("%s", reg_buf);
+}
+
+static struct gb_cpu_hooks debugger_cpu_hooks = { .next_inst = debugger_print_next_inst,
+                                                  .end_inst  = debugger_print_end_inst };
+
 void gb_debugger_run(struct gb_emu *emu)
 {
     struct gb_debugger debugger;
@@ -163,6 +234,8 @@ void gb_debugger_run(struct gb_emu *emu)
     char *line[2] = { NULL, NULL };
 
     memset(&debugger, 0, sizeof(debugger));
+
+    emu->cpu.hooks = &debugger_cpu_hooks;
 
     while (printf("%s", prompt),
            line_len[cur_buff] = getline(line + cur_buff, line_max + cur_buff, stdin)) {

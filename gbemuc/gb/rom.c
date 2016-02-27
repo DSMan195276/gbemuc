@@ -156,8 +156,8 @@ void gb_rom_dump_header(struct gb_rom *rom, FILE *file)
 
     fputc('\n', file);
 
-    fprintf(file, "ROM size: %dKb\n", gb_rom_size[rom->rom_size]);
-    fprintf(file, "RAM size: %dKb\n", gb_ram_size[rom->ram_size]);
+    fprintf(file, "ROM size: %zdKb\n", gb_rom_size[rom->rom_size]);
+    fprintf(file, "RAM size: %zdKb\n", gb_ram_size[rom->ram_size]);
     fprintf(file, "Country: %s\n", (rom->dest_code)? "Non-Japan": "Japan");
     fprintf(file, "License: 0x%02x\n", rom->old_license_code);
 
