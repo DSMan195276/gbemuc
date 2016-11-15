@@ -10,6 +10,7 @@
 #include "cmd_parser.h"
 #include "gb.h"
 #include "gb/cpu.h"
+#include "gb/gpu.h"
 #include "gb/disasm.h"
 #include "gb/debugger.h"
 #include "debug.h"
@@ -166,6 +167,72 @@ static void debugger_debug_on(int argc, char **argv, va_list args)
     emu->hook_flag = 1;
 }
 
+static void display_tile(struct gb_gpu *gpu, int spriten, union gb_gpu_color_u *screenbuf, int x, int y)
+{
+    int i, k;
+    for (i = 0; i < 8; i++) {
+        uint8_t low = gpu->vram.seg.sprites[spriten][i * 2];
+        uint8_t high = gpu->vram.seg.sprites[spriten][i * 2 + 1];
+        for (k = 0; k < 8; k++) {
+            int lo = !!(low & (1 << (7 - k)));
+            int hi = !!(high & (1 << (7 - k)));
+            int pix = lo | (hi << 1);
+            screenbuf[(x + i) * GB_SCREEN_WIDTH + (y + k)] = gb_colors[pix];
+        }
+    }
+}
+
+static void debugger_show_tiles(int argc, char **argv, va_list args)
+{
+    struct gb_debugger *__unused debugger = va_arg(args, struct gb_debugger *);
+    struct gb_emu *emu = va_arg(args, struct gb_emu *);
+    struct gb_gpu *gpu = &emu->gpu;
+    union gb_gpu_color_u screenbuf[GB_SCREEN_HEIGHT * GB_SCREEN_WIDTH] = { 0 };
+    int spriten = 0, soff = 0;
+
+    for (spriten = 0; spriten < 20 * 18; spriten++) {
+        int x, y;
+        x = (spriten / 20) * 8;
+        y = (spriten % 20) * 8;
+
+        display_tile(gpu, spriten + soff, screenbuf, x, y);
+    }
+
+    (gpu->display->disp_buf) (gpu->display, screenbuf);
+}
+
+static void debugger_show_sprites(int argc, char **argv, va_list args)
+{
+    struct gb_debugger *__unused debugger = va_arg(args, struct gb_debugger *);
+    struct gb_emu *emu = va_arg(args, struct gb_emu *);
+    struct gb_gpu *gpu = &emu->gpu;
+    union gb_gpu_color_u screenbuf[GB_SCREEN_HEIGHT * GB_SCREEN_WIDTH] = { 0 };
+    int spriten = 0;
+
+    for (spriten = 0; spriten < 40; spriten++) {
+        int tile_no = emu->gpu.oam.s_attrs[spriten][GB_GPU_SPRITE_ATTR_TILE_NUM];
+        int x, y;
+
+        x = (spriten / 20) * 8;
+        y = (spriten % 20) * 8;
+
+        display_tile(gpu, tile_no, screenbuf, x, y);
+    }
+
+    (gpu->display->disp_buf) (gpu->display, screenbuf);
+}
+
+static void debugger_show_palettes(int argc, char **argv, va_list args)
+{
+    struct gb_debugger *__unused debugger = va_arg(args, struct gb_debugger *);
+    struct gb_emu *emu = va_arg(args, struct gb_emu *);
+    struct gb_gpu *gpu = &emu->gpu;
+
+    printf("Back pal: 0x%02x\n", gpu->back_palette);
+    printf("Obj pal0: 0x%02x\n", gpu->obj_pal[0]);
+    printf("Obj pal1: 0x%02x\n", gpu->obj_pal[1]);
+}
+
 static struct cmd_desc debugger_cmds[] = {
     { 'b', "breakpoint", debugger_breakpoint,
         "Set a breakpoint at an address",
@@ -194,6 +261,15 @@ static struct cmd_desc debugger_cmds[] = {
     { '\0', "debug-off", debugger_debug_off,
         "Turns off debugging output",
         NULL },
+    { '\0', "sprites", debugger_show_sprites,
+        "Display current loaded sprites",
+        NULL },
+    { '\0', "tiles", debugger_show_tiles,
+        "Display current loaded tiles",
+        NULL },
+    { '\0', "palettes", debugger_show_palettes,
+        "Display current loaded palettes",
+        NULL },
     { '\0', "exit", debugger_exit,
         "Exit the debugger",
         NULL },
@@ -212,6 +288,7 @@ static void debugger_print_next_inst(struct gb_cpu_hooks *hooks, struct gb_emu *
 
     gb_disasm_inst(buf, inst);
     printf("(0x%02x)%s\n", inst[0], buf);
+    DEBUG_PRINTF("(0x%02x)%s\n", inst[0], buf);
 }
 
 static void debugger_print_end_inst(struct gb_cpu_hooks *hooks, struct gb_emu *emu)
@@ -220,6 +297,7 @@ static void debugger_print_end_inst(struct gb_cpu_hooks *hooks, struct gb_emu *e
 
     gb_emu_dump_regs(emu, reg_buf);
     printf("%s", reg_buf);
+    DEBUG_PRINTF("%s", reg_buf);
 }
 
 static struct gb_cpu_hooks debugger_cpu_hooks = { .next_inst = debugger_print_next_inst,

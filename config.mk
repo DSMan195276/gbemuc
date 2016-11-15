@@ -1,6 +1,6 @@
 # Compiler settings
 CC      ?= cc
-CFLAGS  += -Wall -g -std=c99 \
+CFLAGS  += -Wall -g -std=c99 -O2 \
 		   -D_GNU_SOURCE -Wno-unused-result
 LDFLAGS ?=
 LEX     ?= flex
@@ -21,5 +21,5 @@ DOCDIR  := $(PREFIX)/share/doc/$(EXE)
 # Show all commands executed by the Makefile
 V ?= n
 
-CONFIG_DEBUG ?= n
+CONFIG_DEBUG ?= y
 

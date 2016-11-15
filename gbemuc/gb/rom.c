@@ -95,6 +95,7 @@ size_t gb_ram_size[] = {
 
 void gb_rom_open(struct gb_rom *rom, const char *filename)
 {
+    char sav_file[strlen(filename) + 5];
     FILE *f = fopen(filename, "r");
 
     if (!f)
@@ -126,6 +127,9 @@ void gb_rom_open(struct gb_rom *rom, const char *filename)
     memcpy(&rom->rom_version,      rom->data + 0x14C,  1);
     memcpy(&rom->header_checksum,  rom->data + 0x14D,  1);
     memcpy(&rom->global_checksum,  rom->data + 0x14E,  2);
+
+    snprintf(sav_file, sizeof(sav_file), "%s.sav", filename);
+    rom->sav_file = fopen(sav_file, "r+");
 }
 
 void gb_rom_dump_header(struct gb_rom *rom, FILE *file)
@@ -198,5 +202,8 @@ void gb_rom_clear(struct gb_rom *rom)
 {
     if (rom->data)
         free(rom->data);
+
+    if (rom->sav_file)
+        fclose(rom->sav_file);
 }
 

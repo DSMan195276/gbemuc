@@ -39,6 +39,8 @@ enum {
 
 #define GB_IO_GPU_DMA 0xFF46
 
+#define GB_IO_KEYPAD   0xFF00
+
 #define GB_GPU_CLOCK_HBLANK 204
 #define GB_GPU_CLOCK_VBLANK 456
 #define GB_GPU_CLOCK_OAM    80
@@ -55,9 +57,20 @@ union gb_gpu_color_u {
     uint32_t i_color;
 };
 
+struct gb_keypad {
+    uint8_t key_a :1;
+    uint8_t key_b :1;
+    uint8_t key_up :1;
+    uint8_t key_down :1;
+    uint8_t key_left :1;
+    uint8_t key_right :1;
+    uint8_t key_start :1;
+    uint8_t key_select :1;
+};
 
 struct gb_gpu_display {
     void (*disp_buf) (struct gb_gpu_display *, union gb_gpu_color_u *buf);
+    void (*get_keystate) (struct gb_gpu_display *, struct gb_keypad *keys);
 };
 
 extern union gb_gpu_color_u gb_colors[];
@@ -69,8 +82,8 @@ enum gb_gpu_mode {
     GB_GPU_MODE_VRAM = 3,
 };
 
-#define GB_GPU_SPRITE_ATTR_X 0
-#define GB_GPU_SPRITE_ATTR_Y 1
+#define GB_GPU_SPRITE_ATTR_Y 0
+#define GB_GPU_SPRITE_ATTR_X 1
 #define GB_GPU_SPRITE_ATTR_TILE_NUM 2
 #define GB_GPU_SPRITE_ATTR_FLAGS 3
 
@@ -94,6 +107,10 @@ struct gb_gpu {
     uint8_t window_x, window_y;
     uint8_t cur_line;
     uint8_t cur_line_cmp;
+
+    struct gb_keypad keypad, old_keypad;
+    uint8_t key_line;
+    uint8_t key_select;
     uint8_t back_palette;
     uint8_t obj_pal[2];
 
@@ -110,15 +127,18 @@ struct gb_gpu {
         uint8_t s_attrs[40][4]; /* Sprite attributes */
     } oam;
 
+    uint8_t bkgd_line_colors[GB_SCREEN_WIDTH]; /* Temporary buffer holding current background colors */
+
     struct gb_gpu_display *display;
 };
 
 void gb_emu_gpu_tick(struct gb_emu *);
 
 void gb_gpu_init(struct gb_gpu *, struct gb_gpu_display *display);
-void gb_gpu_display_screen(struct gb_gpu *gpu);
-void gb_gpu_ctl_change(struct gb_gpu *, uint8_t new_ctl);
+void gb_gpu_display_screen(struct gb_emu *emu, struct gb_gpu *gpu);
+void gb_gpu_ctl_change(struct gb_emu *emu, struct gb_gpu *gpu, uint8_t new_ctl);
 void gb_gpu_dma(struct gb_emu *emu, uint8_t dma_addr);
+void gb_gpu_update_key_line(struct gb_emu *emu);
 
 uint8_t gb_gpu_vram_read8(struct gb_emu *, uint16_t addr, uint16_t low);
 uint16_t gb_gpu_vram_read16(struct gb_emu *, uint16_t addr, uint16_t low);

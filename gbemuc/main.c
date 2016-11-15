@@ -35,13 +35,14 @@ int main(int argc, char **argv)
 
     SDL_Init(SDL_INIT_VIDEO);
 
-    window = SDL_CreateWindow("GBEMUC", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, GB_SCREEN_WIDTH, GB_SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
-
     rect.x = 0;
     rect.y = 0;
-    rect.w = GB_SCREEN_WIDTH;
-    rect.h = GB_SCREEN_HEIGHT;
+    rect.w = GB_SCREEN_WIDTH * 4;
+    rect.h = GB_SCREEN_HEIGHT * 4;
 
+    window = SDL_CreateWindow("GBEMUC", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, rect.w, rect.h, SDL_WINDOW_SHOWN);
+
+    SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 
     disp = gb_sdl_display_new(&rect, renderer);

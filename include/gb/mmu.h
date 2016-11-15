@@ -2,6 +2,7 @@
 #define INCLUDE_MMU_H
 
 #include <stdint.h>
+#include <stdio.h>
 #include "slist.h"
 
 struct gb_emu;
@@ -18,6 +19,7 @@ struct gb_mmu_entry {
 
 extern struct gb_mmu_entry gb_mbc0_mmu_entry, gb_mbc0_eram_mmu_entry;
 extern struct gb_mmu_entry gb_mbc1_mmu_entry, gb_mbc1_eram_mmu_entry;
+extern struct gb_mmu_entry gb_mbc3_mmu_entry, gb_mbc3_eram_mmu_entry;
 
 struct gb_mmu_mbc1 {
     uint8_t ram_enable;
@@ -27,13 +29,22 @@ struct gb_mmu_mbc1 {
     uint8_t ram_rom_bank_upper;
 };
 
+struct gb_mmu_mbc3 {
+    uint8_t rom_bank;
+
+    uint8_t ram_timer_enable;
+    uint8_t ram_bank;
+    uint8_t timer_latch;
+};
+
 struct gb_mmu {
     int bios_flag;
     struct gb_mmu_mbc1 mbc1;
+    struct gb_mmu_mbc3 mbc3;
 
     struct gb_mmu_entry *mbc_controller, *eram_controller;
 
-    char eram[8 * 1024][4]; /* External RAM */
+    char eram[8 * 1024][8]; /* External RAM */
 
     char wram[8 * 1024]; /* Working RAM space */
     char zram[128]; /* Zero-page RAM */

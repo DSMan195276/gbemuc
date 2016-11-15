@@ -34,6 +34,8 @@ struct gb_rom {
 
     size_t length;
     char *data;
+
+    FILE *sav_file;
 };
 
 enum gb_dest_code {

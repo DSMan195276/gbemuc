@@ -8,3 +8,5 @@ objs-$(CONFIG_DEBUG) += debug.o
 subdir-y += gb
 subdir-y += sdl
 
+# objs-y += char_buf.o
+

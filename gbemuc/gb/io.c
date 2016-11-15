@@ -12,7 +12,7 @@
 
 uint8_t gb_emu_io_read8(struct gb_emu *emu, uint16_t addr, uint16_t low)
 {
-    uint8_t ret = 0;
+    uint8_t ret = 0xFF;
 
     switch (addr + low) {
     case GB_IO_CPU_IF:
@@ -64,6 +64,26 @@ uint8_t gb_emu_io_read8(struct gb_emu *emu, uint16_t addr, uint16_t low)
     case GB_IO_OBJ_PAL2:
         ret = emu->gpu.obj_pal[1];
         break;
+
+    case GB_IO_KEYPAD:
+        ret = emu->gpu.key_line;
+        break;
+
+    case GB_IO_TIMER_DIV:
+        ret = emu->timer.div;
+        break;
+
+    case GB_IO_TIMER_TIMA:
+        ret = emu->timer.tima;
+        break;
+
+    case GB_IO_TIMER_TMA:
+        ret = emu->timer.tma;
+        break;
+
+    case GB_IO_TIMER_TAC:
+        ret = emu->timer.tac;
+        break;
     }
 
     return ret;
@@ -71,7 +91,6 @@ uint8_t gb_emu_io_read8(struct gb_emu *emu, uint16_t addr, uint16_t low)
 
 void gb_emu_io_write8(struct gb_emu *emu, uint16_t addr, uint16_t low, uint8_t byte)
 {
-    DEBUG_PRINTF("WRITE TO: 0x%02x - 0x%02x\n", addr + low, byte);
     switch (addr + low) {
     case GB_IO_BIOS_FLAG:
         if (byte == 1)
@@ -84,7 +103,7 @@ void gb_emu_io_write8(struct gb_emu *emu, uint16_t addr, uint16_t low, uint8_t b
         break;
 
     case GB_IO_GPU_CTL:
-        gb_gpu_ctl_change(&emu->gpu, byte);
+        gb_gpu_ctl_change(emu, &emu->gpu, byte);
         break;
 
     case GB_IO_GPU_STATUS:
@@ -131,6 +150,29 @@ void gb_emu_io_write8(struct gb_emu *emu, uint16_t addr, uint16_t low, uint8_t b
 
     case GB_IO_OBJ_PAL2:
         emu->gpu.obj_pal[1] = byte;
+        break;
+
+    case GB_IO_KEYPAD:
+        emu->gpu.key_select = byte & 0x30;
+        gb_gpu_update_key_line(emu);
+        break;
+
+    case GB_IO_TIMER_DIV:
+        emu->timer.div = 0;
+        emu->timer.div_count = 0;
+        break;
+
+    case GB_IO_TIMER_TIMA:
+        emu->timer.tima = byte;
+        emu->timer.tima_count = 0;
+        break;
+
+    case GB_IO_TIMER_TMA:
+        emu->timer.tma = byte;
+        break;
+
+    case GB_IO_TIMER_TAC:
+        gb_timer_update_tac(emu, byte);
         break;
     }
 }

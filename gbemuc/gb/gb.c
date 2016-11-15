@@ -14,7 +14,14 @@
 void gb_emu_rom_open(struct gb_emu *emu, const char *filename)
 {
     int cart_bitmap;
+    size_t flen = 0;
     gb_rom_open(&emu->rom, filename);
+
+    if (emu->rom.sav_file) {
+        fseek(emu->rom.sav_file, 0, SEEK_END);
+        flen = ftell(emu->rom.sav_file);
+        fseek(emu->rom.sav_file, 0, SEEK_SET);
+    }
 
     cart_bitmap = gb_cart_type_bitmap[emu->rom.cart_type];
     if (cart_bitmap & GB_CART_FLAG(ROM)) {
@@ -24,6 +31,17 @@ void gb_emu_rom_open(struct gb_emu *emu, const char *filename)
         DEBUG_PRINTF("MBC1 CONTROLLER\n");
         emu->mmu.mbc_controller = &gb_mbc1_mmu_entry;
         emu->mmu.eram_controller = &gb_mbc1_eram_mmu_entry;
+
+        if (flen != 0)
+            fread(emu->mmu.eram, 1, flen, emu->rom.sav_file);
+
+    } else if (cart_bitmap & GB_CART_FLAG(MBC3)) {
+        DEBUG_PRINTF("MBC3 CONTROLLER\n");
+        emu->mmu.mbc_controller = &gb_mbc3_mmu_entry;
+        emu->mmu.eram_controller = &gb_mbc3_eram_mmu_entry;
+
+        if (flen != 0)
+            fread(emu->mmu.eram, 1, flen, emu->rom.sav_file);
     }
 }
 
@@ -54,11 +72,18 @@ void gb_emu_init(struct gb_emu *emu, struct gb_gpu_display *display)
 void gb_emu_set_display(struct gb_emu *emu, struct gb_gpu_display *display)
 {
     emu->gpu.display = display;
-    gb_gpu_display_screen(&emu->gpu);
+    gb_gpu_display_screen(emu, &emu->gpu);
 }
 
 void gb_emu_clear(struct gb_emu *emu)
 {
+    if (emu->rom.sav_file) {
+        printf("Writing .sav file: %zd bytes\n", gb_ram_size[emu->rom.ram_size] * 1024);
+
+        fseek(emu->rom.sav_file, 0, SEEK_SET);
+        fwrite(emu->mmu.eram, 1, gb_ram_size[emu->rom.ram_size] * 1024, emu->rom.sav_file);
+    }
+
     gb_rom_clear(&emu->rom);
     free(emu->breakpoints);
 }

@@ -6,6 +6,7 @@
 #include "gb/cpu.h"
 #include "gb/mmu.h"
 #include "gb/gpu.h"
+#include "gb/timer.h"
 #include "gb/rom.h"
 
 #define GB_HZ 4194304
@@ -20,6 +21,7 @@ struct gb_emu {
     struct gb_cpu cpu;
     struct gb_mmu mmu;
     struct gb_gpu gpu;
+    struct gb_timer timer;
 
     struct gb_rom rom;
 
