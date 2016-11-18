@@ -1,8 +1,14 @@
 # Compiler settings
 CC      ?= cc
+CXX     ?= c++
+
 CFLAGS  += -Wall -g -std=c99 -O2 \
-		   -D_GNU_SOURCE -Wno-unused-result
-LDFLAGS ?=
+		   -Wno-unused-result
+CXXFLAGS ?= -g -O2
+
+CPPFLAGS ?= -D_GNU_SOURCE
+
+LDFLAGS ?= -lm
 LEX     ?= flex
 LFLAGS  ?=
 YACC    ?= bison

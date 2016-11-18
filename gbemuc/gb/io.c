@@ -8,6 +8,7 @@
 #include "gb.h"
 #include "gb/gpu.h"
 #include "gb/io.h"
+#include "gb/sound.h"
 #include "debug.h"
 
 uint8_t gb_emu_io_read8(struct gb_emu *emu, uint16_t addr, uint16_t low)
@@ -84,6 +85,10 @@ uint8_t gb_emu_io_read8(struct gb_emu *emu, uint16_t addr, uint16_t low)
     case GB_IO_TIMER_TAC:
         ret = emu->timer.tac;
         break;
+
+    case 0xFF10 ... 0xFF3F:
+        ret = gb_sound_read(&emu->sound, emu->sound.apu_cycles, addr + low);
+        break;
     }
 
     return ret;
@@ -107,9 +112,7 @@ void gb_emu_io_write8(struct gb_emu *emu, uint16_t addr, uint16_t low, uint8_t b
         break;
 
     case GB_IO_GPU_STATUS:
-        /* BIT 2 is preserved */
-        emu->gpu.status &= 0x04;
-        emu->gpu.status |= byte;
+        emu->gpu.status = byte & 0x78;
         break;
 
     case GB_IO_GPU_SCRY:
@@ -122,10 +125,15 @@ void gb_emu_io_write8(struct gb_emu *emu, uint16_t addr, uint16_t low, uint8_t b
 
     case GB_IO_GPU_LY:
         emu->gpu.cur_line = 0;
+
+        if ((emu->gpu.status & GB_GPU_STATUS_CONC_INT)
+            && emu->gpu.cur_line == emu->gpu.cur_line_cmp)
+            emu->cpu.int_flags |= (1 << GB_INT_LCD_STAT);
         break;
 
     case GB_IO_GPU_LYC:
         emu->gpu.cur_line_cmp = byte;
+
         break;
 
     case GB_IO_GPU_PALETTE:
@@ -173,6 +181,10 @@ void gb_emu_io_write8(struct gb_emu *emu, uint16_t addr, uint16_t low, uint8_t b
 
     case GB_IO_TIMER_TAC:
         gb_timer_update_tac(emu, byte);
+        break;
+
+    case 0xFF10 ... 0xFF3F:
+        gb_sound_write(&emu->sound, emu->sound.apu_cycles, addr + low, byte);
         break;
     }
 }

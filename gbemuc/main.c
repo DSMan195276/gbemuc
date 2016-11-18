@@ -7,6 +7,7 @@
 
 #include "debug.h"
 #include "sdl_display.h"
+#include "sdl_sound.h"
 #include "gb/rom.h"
 #include "gb/debugger.h"
 #include "gb.h"
@@ -16,9 +17,8 @@ static struct gb_emu emu;
 int main(int argc, char **argv)
 {
     struct gb_gpu_display *disp;
-    SDL_Rect rect;
+    struct gb_apu_sound *sound;
     SDL_Window *window;
-    SDL_Renderer *renderer;
 
     DEBUG_INIT();
 
@@ -33,27 +33,22 @@ int main(int argc, char **argv)
         return 0;
     }
 
-    SDL_Init(SDL_INIT_VIDEO);
+    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
 
-    rect.x = 0;
-    rect.y = 0;
-    rect.w = GB_SCREEN_WIDTH * 4;
-    rect.h = GB_SCREEN_HEIGHT * 4;
-
-    window = SDL_CreateWindow("GBEMUC", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, rect.w, rect.h, SDL_WINDOW_SHOWN);
+    window = SDL_CreateWindow("GBEMUC", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, GB_SCREEN_WIDTH * 4, GB_SCREEN_HEIGHT * 4, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
 
     SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
-    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 
-    disp = gb_sdl_display_new(&rect, renderer);
+    disp = gb_sdl_display_new(window);
+    sound = gb_sdl_sound_new();
 
     DEBUG_OFF();
     gb_emu_set_display(&emu, disp);
+    gb_emu_set_sound(&emu, sound);
     gb_debugger_run(&emu);
 
     gb_emu_clear(&emu);
     gb_sdl_display_destroy(disp);
-    SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
 
     SDL_Quit();

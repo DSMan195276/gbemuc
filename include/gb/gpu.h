@@ -58,22 +58,25 @@ union gb_gpu_color_u {
 };
 
 struct gb_keypad {
-    uint8_t key_a :1;
-    uint8_t key_b :1;
-    uint8_t key_up :1;
-    uint8_t key_down :1;
-    uint8_t key_left :1;
-    uint8_t key_right :1;
-    uint8_t key_start :1;
-    uint8_t key_select :1;
+    int key_a;
+    int key_b;
+    int key_up;
+    int key_down;
+    int key_left;
+    int key_right;
+    int key_start;
+    int key_select;
 };
 
 struct gb_gpu_display {
     void (*disp_buf) (struct gb_gpu_display *, union gb_gpu_color_u *buf);
     void (*get_keystate) (struct gb_gpu_display *, struct gb_keypad *keys);
+
+    int palette_selection;
+    int max_palette;
 };
 
-extern union gb_gpu_color_u gb_colors[];
+extern union gb_gpu_color_u gb_colors[][4];
 
 enum gb_gpu_mode {
     GB_GPU_MODE_HBLANK = 0,
@@ -91,6 +94,11 @@ enum gb_gpu_mode {
 #define GB_GPU_SPRITE_FLAG_X_FLIP  (1 << 5)
 #define GB_GPU_SPRITE_FLAG_Y_FLIP  (1 << 6)
 #define GB_GPU_SPRITE_FLAG_BEHIND_BG (1 << 7)
+
+#define GB_GPU_STATUS_CONC_INT (1 << 6)
+#define GB_GPU_STATUS_OAM_INT (1 << 5)
+#define GB_GPU_STATUS_VBLANK_INT (1 << 4)
+#define GB_GPU_STATUS_HBLANK_INT (1 << 3)
 
 #define GB_IO_OBJ_PAL1 0xFF48
 #define GB_IO_OBJ_PAL2 0xFF49
@@ -151,5 +159,7 @@ uint16_t gb_gpu_sprite_read16(struct gb_emu *, uint16_t addr, uint16_t low);
 
 void gb_gpu_sprite_write8(struct gb_emu *, uint16_t addr, uint16_t low, uint8_t byte);
 void gb_gpu_sprite_write16(struct gb_emu *, uint16_t addr, uint16_t low, uint16_t word);
+
+void gb_apu_end_sound_frame(struct gb_emu *emu);
 
 #endif

@@ -6,6 +6,7 @@
 #include "gb/cpu.h"
 #include "gb/mmu.h"
 #include "gb/gpu.h"
+#include "gb/sound.h"
 #include "gb/timer.h"
 #include "gb/rom.h"
 
@@ -17,11 +18,22 @@ enum gb_emu_stop {
     GB_EMU_STOP,
 };
 
+enum gb_emu_type {
+    GB_EMU_DMG,
+};
+
+struct gb_config {
+    enum gb_emu_type type;
+};
+
 struct gb_emu {
+    struct gb_config config;
     struct gb_cpu cpu;
     struct gb_mmu mmu;
     struct gb_gpu gpu;
     struct gb_timer timer;
+
+    struct gb_sound sound;
 
     struct gb_rom rom;
 
@@ -40,6 +52,7 @@ int gb_emu_cpu_run_inst(struct gb_emu *emu, uint8_t opcode);
 
 void gb_emu_rom_open(struct gb_emu *emu, const char *filename);
 void gb_emu_set_display(struct gb_emu *emu, struct gb_gpu_display *display);
+void gb_emu_set_sound(struct gb_emu *emu, struct gb_apu_sound *sound);
 void gb_emu_dump_regs(struct gb_emu *emu, char *output_buf);
 
 void gb_emu_init(struct gb_emu *emu, struct gb_gpu_display *display);

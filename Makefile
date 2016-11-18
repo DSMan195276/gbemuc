@@ -97,7 +97,7 @@ endef
 define proj_ccld_rule
 $(1): $(2) | $$(objtree)/bin
 	@$$(call mecho," CCLD    $$@","$$(CC) $(3) $(2) -o $$@ $(4)")
-	$$(Q)$$(CC) $$(LDFLAGS) $(3) $(2) -o $$@ $(4)
+	$$(Q)$$(CXX) $$(LDFLAGS) $(3) $(2) -o $$@ $(4)
 endef
 
 define proj_inc
@@ -164,6 +164,10 @@ $(objtree)/bin:
 	@$(call mecho," MKDIR   $@","$(MKDIR) $@")
 	$(Q)$(MKDIR) $@
 
+$(objtree)/%.o: $(srctree)/%.cpp
+	@$(call mecho," C++     $@","$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@")
+	$(Q)$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
+
 $(objtree)/%.o: $(srctree)/%.c
 	@$(call mecho," CC      $@","$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@")
 	$(Q)$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
@@ -172,6 +176,9 @@ $(objtree)/.%.d: $(srctree)/%.c
 	@$(call mecho," CCDEP   $@","$(CC) -MM -MP -MF $@ $(CPPFLAGS) $(CFLAGS) $< -MT $(objtree)/$*.o -MT $@")
 	$(Q)$(CC) -MM -MP -MF $@ $(CPPFLAGS) $(CFLAGS) $< -MT $(objtree)/$*.o -MT $@
 
+$(objtree)/.%.d: $(srctree)/%.cpp
+	@$(call mecho," CXXCDEP $@","$(CXX) -MM -MP -MF $@ $(CPPFLAGS) $(CXXFLAGS) $< -MT $(objtree)/$*.o -MT $@")
+	$(Q)$(CXX) -MM -MP -MF $@ $(CPPFLAGS) $(CXXFLAGS) $< -MT $(objtree)/$*.o -MT $@
 
 DEP_LIST := $(foreach dep,$(DEPS),$(dir $(dep)).$(notdir $(dep)))
 DEP_LIST := $(DEP_LIST:.o=.d)

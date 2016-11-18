@@ -129,7 +129,11 @@ void gb_rom_open(struct gb_rom *rom, const char *filename)
     memcpy(&rom->global_checksum,  rom->data + 0x14E,  2);
 
     snprintf(sav_file, sizeof(sav_file), "%s.sav", filename);
+    printf("Sav: %s\n", sav_file);
+
     rom->sav_file = fopen(sav_file, "r+");
+    if (!rom->sav_file)
+        rom->sav_file = fopen(sav_file, "w+");
 }
 
 void gb_rom_dump_header(struct gb_rom *rom, FILE *file)

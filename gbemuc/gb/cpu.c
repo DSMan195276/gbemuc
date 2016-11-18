@@ -1952,6 +1952,13 @@ enum gb_emu_stop gb_run(struct gb_emu *emu)
 
     emu->stop_emu = 0;
 
+    if (emu->sound.driver) {
+        gb_sound_start(&emu->sound);
+        gb_sound_set_sound_rate(&emu->sound, GB_APU_SAMPLE_RATE);
+
+        (emu->sound.driver->play) (emu->sound.driver);
+    }
+
     while (!emu->stop_emu) {
         cycles = 0;
 
@@ -1960,6 +1967,12 @@ enum gb_emu_stop gb_run(struct gb_emu *emu)
             if (emu->stop_emu)
                 break;
         }
+    }
+
+    if (emu->sound.driver) {
+        (emu->sound.driver->pause) (emu->sound.driver);
+
+        gb_sound_finish(&emu->sound);
     }
 
     return emu->reason;

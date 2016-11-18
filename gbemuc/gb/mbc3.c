@@ -2,6 +2,7 @@
 #include "common.h"
 
 #include <string.h>
+#include <time.h>
 
 #include "gb.h"
 #include "gb/mmu.h"
@@ -44,26 +45,57 @@ static uint8_t mbc3_read8(struct gb_emu *emu, uint16_t addr, uint16_t low)
     }
 }
 
-static uint16_t mbc3_read16(struct gb_emu *emu, uint16_t addr, uint16_t low)
+static void mbc3_update_time(struct gb_mmu *mmu)
 {
-    uint16_t ret;
+    time_t now = time(NULL);
+    time_t elapsed = now - mmu->mbc3.last_time_update;
 
-    if (!emu->mmu.bios_flag && addr < 0x0100) {
-        memcpy(&ret, gb_bios + addr, sizeof(ret));
-    } else {
-        int bank_no = 0;
-        int data_offset = addr;
+    if (elapsed > 0) {
+        int seconds, minutes, hours, days;
 
-        if (addr >= 0x4000) {
-            bank_no = bank_number(emu);
-            data_offset &= 0x3FFF;
-            data_offset += bank_no * 0x4000;
+        seconds = elapsed % 60;
+        elapsed /= 60;
+
+        minutes = elapsed % 60;
+        elapsed /= 60;
+
+        hours = elapsed % 24;
+        elapsed /= 24;
+
+        days = elapsed;
+
+        mmu->mbc3.cur.seconds += seconds;
+        if (mmu->mbc3.cur.seconds > 60) {
+            mmu->mbc3.cur.seconds -= 60;
+            mmu->mbc3.cur.minutes++;
         }
 
-        memcpy(&ret, emu->rom.data + data_offset, sizeof(ret));
+        mmu->mbc3.cur.minutes += minutes;
+        if (mmu->mbc3.cur.minutes > 60) {
+            mmu->mbc3.cur.minutes -= 60;
+            mmu->mbc3.cur.hours++;
+        }
+
+        mmu->mbc3.cur.hours += hours;
+        if (mmu->mbc3.cur.hours > 24) {
+            mmu->mbc3.cur.hours -= 24;
+            mmu->mbc3.cur.days++;
+        }
+
+        mmu->mbc3.cur.days += days;
+        if (mmu->mbc3.cur.days > 255) {
+            mmu->mbc3.cur.control = 0;
+            if (mmu->mbc3.cur.days > 512) {
+                mmu->mbc3.cur.days %= 512;
+                mmu->mbc3.cur.control |= 0x80;
+            }
+
+            mmu->mbc3.cur.control |= (mmu->mbc3.cur.days > 255)? 0x01: 0x00;
+        }
+
     }
 
-    return ret;
+    mmu->mbc3.last_time_update = now;
 }
 
 static void mbc3_write8(struct gb_emu *emu, uint16_t addr, uint16_t low, uint8_t val)
@@ -75,7 +107,7 @@ static void mbc3_write8(struct gb_emu *emu, uint16_t addr, uint16_t low, uint8_t
     switch (a) {
     case 0x0:
     case 0x1:
-        emu->mmu.mbc3.ram_timer_enable = val;
+        emu->mmu.mbc3.ram_timer_enable = val & 0xF;
         break;
 
     case 0x2:
@@ -90,80 +122,73 @@ static void mbc3_write8(struct gb_emu *emu, uint16_t addr, uint16_t low, uint8_t
 
     case 0x6:
     case 0x7:
+        if (emu->mmu.mbc3.timer_latch == 0 && val == 1) {
+            mbc3_update_time(&emu->mmu);
+            emu->mmu.mbc3.latched = emu->mmu.mbc3.cur;
+        }
+
         emu->mmu.mbc3.timer_latch = val;
         break;
     }
 }
 
-static void mbc3_write16(struct gb_emu *emu, uint16_t addr, uint16_t low, uint16_t val)
-{
-    printf("MBC3 WRITE16: 0x%04x, 0x%04x\n", addr, low);
-    /* NOP */
-}
-
 static uint8_t mbc3_eram_read8(struct gb_emu *emu, uint16_t addr, uint16_t low)
 {
-    if (!((emu->mmu.mbc3.ram_timer_enable & 0x0A) == 0x0A))
+    if (!(emu->mmu.mbc3.ram_timer_enable == 0x0A))
         return 0;
 
     if (emu->mmu.mbc3.ram_bank < 0x04)
-        return emu->mmu.eram[addr][emu->mmu.mbc3.ram_bank];
-    else
-        return 0; /* Timer */
-}
+        return emu->mmu.eram[emu->mmu.mbc3.ram_bank][addr];
+    else if (emu->mmu.mbc3.ram_bank == 0x08)
+        return emu->mmu.mbc3.latched.seconds;
+    else if (emu->mmu.mbc3.ram_bank == 0x09)
+        return emu->mmu.mbc3.latched.minutes;
+    else if (emu->mmu.mbc3.ram_bank == 0x0A)
+        return emu->mmu.mbc3.latched.hours;
+    else if (emu->mmu.mbc3.ram_bank == 0x0B)
+        return emu->mmu.mbc3.latched.days & 0xFF;
+    else if (emu->mmu.mbc3.ram_bank == 0x0C)
+        return emu->mmu.mbc3.latched.control;
 
-static uint16_t mbc3_eram_read16(struct gb_emu *emu, uint16_t addr, uint16_t low)
-{
-    uint16_t ret;
-
-    if (!((emu->mmu.mbc3.ram_timer_enable & 0x0A) == 0x0A))
-        return 0;
-
-    if (emu->mmu.mbc3.ram_bank < 0x04)
-        memcpy(&ret, &emu->mmu.eram[addr][emu->mmu.mbc3.ram_bank], sizeof(ret));
-    else
-        return 0; /* Timer */
-
-    return ret;
+    return 0;
 }
 
 static void mbc3_eram_write8(struct gb_emu *emu, uint16_t addr, uint16_t low, uint8_t val)
 {
-    if (!((emu->mmu.mbc3.ram_timer_enable & 0x0A) == 0x0A))
+    if (!(emu->mmu.mbc3.ram_timer_enable == 0x0A))
         return ;
 
     if (emu->mmu.mbc3.ram_bank < 0x04)
-        emu->mmu.eram[addr][emu->mmu.mbc3.ram_bank] = val;
-    else
-        return ; /* Timer */
-}
+        emu->mmu.eram[emu->mmu.mbc3.ram_bank][addr] = val;
+    else {
+        time_t now = time(NULL);
 
-static void mbc3_eram_write16(struct gb_emu *emu, uint16_t addr, uint16_t low, uint16_t val)
-{
-    if (!((emu->mmu.mbc3.ram_timer_enable & 0x0A) == 0x0A))
-        return ;
+        emu->mmu.mbc3.last_time_update = now;
 
-    if (emu->mmu.mbc3.ram_bank < 0x04)
-        emu->mmu.eram[addr][emu->mmu.mbc3.ram_bank] = val;
-    else
-        return ; /* Timer */
+        if (emu->mmu.mbc3.ram_bank == 0x08)
+            emu->mmu.mbc3.cur.seconds = val;
+        else if (emu->mmu.mbc3.ram_bank == 0x09)
+            emu->mmu.mbc3.cur.minutes = val;
+        else if (emu->mmu.mbc3.ram_bank == 0x0A)
+            emu->mmu.mbc3.cur.hours = val;
+        else if (emu->mmu.mbc3.ram_bank == 0x0B)
+            emu->mmu.mbc3.cur.days = val;
+        else if (emu->mmu.mbc3.ram_bank == 0x0C)
+            emu->mmu.mbc3.cur.control = val;
+    }
 }
 
 struct gb_mmu_entry gb_mbc3_mmu_entry = {
     .low = 0x0000,
     .high = 0x7FFF,
     .read8 = mbc3_read8,
-    .read16 = mbc3_read16,
     .write8 = mbc3_write8,
-    .write16 = mbc3_write16,
 };
 
 struct gb_mmu_entry gb_mbc3_eram_mmu_entry = {
     .low = 0xA000,
     .high = 0xBFFF,
     .read8 = mbc3_eram_read8,
-    .read16 = mbc3_eram_read16,
     .write8 = mbc3_eram_write8,
-    .write16 = mbc3_eram_write16,
 };
 

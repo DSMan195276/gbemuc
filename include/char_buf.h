@@ -1,5 +1,5 @@
-#ifndef INCLUDE_PROTURA_CHAR_BUF_H
-#define INCLUDE_PROTURA_CHAR_BUF_H
+#ifndef INCLUDE_CHAR_BUF_H
+#define INCLUDE_CHAR_BUF_H
 
 #include <stdlib.h>
 

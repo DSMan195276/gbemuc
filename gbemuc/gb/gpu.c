@@ -9,12 +9,25 @@
 #include "gb.h"
 #include "debug.h"
 
-union gb_gpu_color_u gb_colors[] =
-{
-    { .i_color = 0xFFFFF77B },
-    { .i_color = 0xFFB5AE4A },
-    { .i_color = 0xFF6B6931 },
-    { .i_color = 0xFF212010 },
+union gb_gpu_color_u gb_colors[][4] = {
+    {
+        { .i_color = 0xFFFFF77B },
+        { .i_color = 0xFFB5AE4A },
+        { .i_color = 0xFF6B6931 },
+        { .i_color = 0xFF212010 },
+    },
+    {
+        { .i_color = 0xFFFFFFFF },
+        { .i_color = 0xFFAAAAAA },
+        { .i_color = 0xFF555555 },
+        { .i_color = 0xFF000000 },
+    },
+    {
+        { .i_color = 0xFF9BBC0F },
+        { .i_color = 0xFF8BAC0F },
+        { .i_color = 0xFF305230 },
+        { .i_color = 0xFF0F380F },
+    },
 };
 
 static void render_background(struct gb_gpu *gpu)
@@ -67,7 +80,7 @@ static void render_background(struct gb_gpu *gpu)
         if ((i % 8) == 0)
             line[i].i_color = 0xFF00FF00;
         else */
-            line[i] = gb_colors[pal_col];
+            line[i] = gb_colors[gpu->display->palette_selection][pal_col];
     }
 }
 
@@ -126,7 +139,7 @@ static void render_window(struct gb_gpu *gpu)
         if ((i % 8) == 0)
             line[i].i_color = 0xFFFF0000;
         else */
-            line[i] = gb_colors[pal_col];
+            line[i] = gb_colors[gpu->display->palette_selection][pal_col];
     }
 }
 
@@ -174,7 +187,7 @@ static void render_single_sprite(struct gb_gpu *gpu, union gb_gpu_color_u *line,
             continue;
 
         col = (palette >> (sel * 2)) & 0x03;
-        line[x + x_loc] = gb_colors[col];
+        line[x + x_loc] = gb_colors[gpu->display->palette_selection][col];
     }
 }
 
@@ -274,6 +287,8 @@ void gb_gpu_update_key_line(struct gb_emu *emu)
 
 void gb_gpu_display_screen(struct gb_emu *emu, struct gb_gpu *gpu)
 {
+    gpu->display->max_palette = sizeof(gb_colors) / sizeof(*gb_colors);
+
     (gpu->display->get_keystate) (gpu->display, &gpu->keypad);
     gb_gpu_update_key_line(emu);
 
@@ -285,7 +300,10 @@ void gb_gpu_ctl_change(struct gb_emu *emu, struct gb_gpu *gpu, uint8_t new_ctl)
     uint8_t diff = gpu->ctl ^ new_ctl;
 
     if (diff & GB_GPU_CTL_DISPLAY) {
-        memset(gpu->screenbuf, 0x00, sizeof(gpu->screenbuf));
+        int i, j;
+        for (i = 0; i < GB_SCREEN_HEIGHT; i++)
+            for (j = 0; j < GB_SCREEN_WIDTH; j++)
+                gpu->screenbuf[i * GB_SCREEN_WIDTH + j] = gb_colors[gpu->display->palette_selection][0];
         gb_gpu_display_screen(emu, gpu);
 
         gpu->cur_line = 0;
@@ -299,7 +317,8 @@ static void gb_gpu_inc_line(struct gb_emu *emu)
 {
     emu->gpu.cur_line++;
 
-    if (emu->gpu.cur_line == emu->gpu.cur_line_cmp)
+    if ((emu->gpu.status & GB_GPU_STATUS_CONC_INT)
+        && emu->gpu.cur_line == emu->gpu.cur_line_cmp)
         emu->cpu.int_flags |= (1 << GB_INT_LCD_STAT);
 }
 
@@ -308,8 +327,16 @@ void gb_emu_gpu_tick(struct gb_emu *emu)
     struct gb_gpu *gpu = &emu->gpu;
 
     if (!(gpu->ctl & GB_GPU_CTL_DISPLAY)) {
-        gpu->clock = 0;
         gpu->mode = GB_GPU_MODE_HBLANK;
+        gpu->clock += 4;
+
+        /* We keep counting the cycles even when the display is off to keep the
+         * timing right - display the screen also delays the emulation speed */
+        if (gpu->clock >= GB_GPU_CLOCK_VBLANK * GB_GPU_VBLANK_LENGTH
+                          + (GB_GPU_CLOCK_HBLANK + GB_GPU_CLOCK_OAM + GB_GPU_CLOCK_VRAM) * GB_SCREEN_HEIGHT) {
+            gb_gpu_display_screen(emu, gpu);
+            gpu->clock = 0;
+        }
         return ;
     }
 
@@ -326,8 +353,14 @@ void gb_emu_gpu_tick(struct gb_emu *emu)
                 gb_gpu_display_screen(emu, gpu);
 
                 emu->cpu.int_flags |= (1 << GB_INT_VBLANK);
+
+                if (gpu->status & GB_GPU_STATUS_VBLANK_INT)
+                    emu->cpu.int_flags |= (1 << GB_INT_LCD_STAT);
             } else {
                 gpu->mode = GB_GPU_MODE_OAM;
+
+                if (gpu->status & GB_GPU_STATUS_OAM_INT)
+                    emu->cpu.int_flags |= (1 << GB_INT_LCD_STAT);
             }
         }
         break;
@@ -344,6 +377,9 @@ void gb_emu_gpu_tick(struct gb_emu *emu)
             gpu->clock = 0;
             gpu->mode = GB_GPU_MODE_HBLANK;
 
+            if (gpu->status & GB_GPU_STATUS_HBLANK_INT)
+                emu->cpu.int_flags |= (1 << GB_INT_LCD_STAT);
+
             gb_gpu_render_line(gpu);
         }
         break;
@@ -356,7 +392,11 @@ void gb_emu_gpu_tick(struct gb_emu *emu)
                 gpu->mode = GB_GPU_MODE_OAM;
                 gpu->cur_line = 0;
 
-                if (gpu->cur_line == gpu->cur_line_cmp)
+                if (gpu->status & GB_GPU_STATUS_OAM_INT)
+                    emu->cpu.int_flags |= (1 << GB_INT_LCD_STAT);
+
+                if ((emu->gpu.status & GB_GPU_STATUS_CONC_INT)
+                    && emu->gpu.cur_line == emu->gpu.cur_line_cmp)
                     emu->cpu.int_flags |= (1 << GB_INT_LCD_STAT);
             }
         }

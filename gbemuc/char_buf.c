@@ -52,13 +52,11 @@ void char_buf_write(struct char_buf *buf, const void *data, size_t data_len)
 
     if (buf->len - end_pos >= data_len) {
         /* All the data can fit after end_pos, no wrapping nessisary */
-        printf("write: First path\n");
         memcpy(buf->buffer + end_pos, data, data_len);
         buf->buf_len += data_len;
     } else {
         /* Only part of the data fits after end_pos, we have to wrap for the
          * rest */
-        printf("write: Second path\n");
         if (buf->len - end_pos > 0) {
             memcpy(buf->buffer + end_pos, data, buf->len - end_pos);
 
@@ -69,6 +67,10 @@ void char_buf_write(struct char_buf *buf, const void *data, size_t data_len)
 
         memcpy(buf->buffer, data, data_len);
         buf->buf_len += data_len;
+    }
+
+    if (buf->buf_len > buf->len) {
+        printf("Write past end of buffer\n");
     }
 }
 
@@ -85,7 +87,6 @@ size_t char_buf_read(struct char_buf *buf, void *data, size_t data_len)
     orig_size = data_len;
 
     if (buf->len - buf->start_pos >= data_len) {
-        printf("First path\n");
         memcpy(data, buf->buffer + buf->start_pos, data_len);
         buf->start_pos += data_len;
         buf->buf_len -= data_len;
@@ -94,7 +95,6 @@ size_t char_buf_read(struct char_buf *buf, void *data, size_t data_len)
             buf->start_pos = 0;
 
     } else {
-        printf("Second path, start_pos: %d, diff: %d\n", buf->start_pos, buf->len - buf->start_pos);
         if (buf->len - buf->start_pos > 0) {
             memcpy(data, buf->buffer + buf->start_pos, buf->len - buf->start_pos);
 
@@ -102,8 +102,6 @@ size_t char_buf_read(struct char_buf *buf, void *data, size_t data_len)
             data_len -= buf->len - buf->start_pos;
             buf->buf_len -= buf->len - buf->start_pos;
         }
-
-        printf("Left to read: %d\n", data_len);
 
         memcpy(data, buf->buffer, data_len);
         buf->start_pos = data_len;

@@ -46,28 +46,6 @@ static uint8_t mbc1_read8(struct gb_emu *emu, uint16_t addr, uint16_t low)
     }
 }
 
-static uint16_t mbc1_read16(struct gb_emu *emu, uint16_t addr, uint16_t low)
-{
-    uint16_t ret;
-
-    if (!emu->mmu.bios_flag && addr < 0x0100) {
-        memcpy(&ret, gb_bios + addr, sizeof(ret));
-    } else {
-        int bank_no = 0;
-        int data_offset = addr;
-
-        if (addr >= 0x4000) {
-            bank_no = bank_number(emu);
-            data_offset &= 0x3FFF;
-            data_offset += bank_no * 0x4000;
-        }
-
-        memcpy(&ret, emu->rom.data + data_offset, sizeof(ret));
-    }
-
-    return ret;
-}
-
 static void mbc1_write8(struct gb_emu *emu, uint16_t addr, uint16_t low, uint8_t val)
 {
     uint16_t a;
@@ -97,62 +75,33 @@ static void mbc1_write8(struct gb_emu *emu, uint16_t addr, uint16_t low, uint8_t
     }
 }
 
-static void mbc1_write16(struct gb_emu *emu, uint16_t addr, uint16_t low, uint16_t val)
-{
-    DEBUG_PRINTF("MBC1 WRITE16: 0x%04x, 0x%04x\n", addr, low);
-    /* NOP */
-}
-
 static uint8_t mbc1_eram_read8(struct gb_emu *emu, uint16_t addr, uint16_t low)
 {
     if (emu->mmu.mbc1.rom_ram_mode)
-        return emu->mmu.eram[addr][emu->mmu.mbc1.ram_rom_bank_upper];
+        return emu->mmu.eram[emu->mmu.mbc1.ram_rom_bank_upper][addr];
     else
-        return emu->mmu.eram[addr][0];
-}
-
-static uint16_t mbc1_eram_read16(struct gb_emu *emu, uint16_t addr, uint16_t low)
-{
-    uint16_t ret;
-    if (emu->mmu.mbc1.rom_ram_mode)
-        memcpy(&ret, &emu->mmu.eram[addr][emu->mmu.mbc1.ram_rom_bank_upper], sizeof(ret));
-    else
-        memcpy(&ret, &emu->mmu.eram[addr][0], sizeof(ret));
-
-    return ret;
+        return emu->mmu.eram[0][addr];
 }
 
 static void mbc1_eram_write8(struct gb_emu *emu, uint16_t addr, uint16_t low, uint8_t val)
 {
     if (emu->mmu.mbc1.rom_ram_mode)
-        emu->mmu.eram[addr][emu->mmu.mbc1.ram_rom_bank_upper] = val;
+        emu->mmu.eram[emu->mmu.mbc1.ram_rom_bank_upper][addr] = val;
     else
-        emu->mmu.eram[addr][0] = val;
-}
-
-static void mbc1_eram_write16(struct gb_emu *emu, uint16_t addr, uint16_t low, uint16_t val)
-{
-    if (emu->mmu.mbc1.rom_ram_mode)
-        memcpy(&emu->mmu.eram[addr][emu->mmu.mbc1.ram_rom_bank_upper], &val, sizeof(val));
-    else
-        memcpy(&emu->mmu.eram[addr][0], &val, sizeof(val));
+        emu->mmu.eram[0][addr] = val;
 }
 
 struct gb_mmu_entry gb_mbc1_mmu_entry = {
     .low = 0x0000,
     .high = 0x7FFF,
     .read8 = mbc1_read8,
-    .read16 = mbc1_read16,
     .write8 = mbc1_write8,
-    .write16 = mbc1_write16,
 };
 
 struct gb_mmu_entry gb_mbc1_eram_mmu_entry = {
     .low = 0xA000,
     .high = 0xBFFF,
     .read8 = mbc1_eram_read8,
-    .read16 = mbc1_eram_read16,
     .write8 = mbc1_eram_write8,
-    .write16 = mbc1_eram_write16,
 };
 

@@ -177,7 +177,7 @@ static void display_tile(struct gb_gpu *gpu, int spriten, union gb_gpu_color_u *
             int lo = !!(low & (1 << (7 - k)));
             int hi = !!(high & (1 << (7 - k)));
             int pix = lo | (hi << 1);
-            screenbuf[(x + i) * GB_SCREEN_WIDTH + (y + k)] = gb_colors[pix];
+            screenbuf[(x + i) * GB_SCREEN_WIDTH + (y + k)] = gb_colors[gpu->display->palette_selection][pix];
         }
     }
 }
