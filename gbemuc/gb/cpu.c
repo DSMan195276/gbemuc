@@ -1071,7 +1071,14 @@ static int halt(struct gb_emu *emu, uint8_t opcode)
 /* STOP */
 static int stop(struct gb_emu *emu, uint8_t opcode)
 {
-    emu->cpu.stopped = 1;
+    if (!gb_emu_is_cgb(emu) || !emu->cpu.do_speed_switch) {
+        emu->cpu.stopped = 1;
+    } else {
+        /* Toggle double speed mode */
+        emu->cpu.double_speed ^= 1;
+        printf("Entered double-speed mode\n");
+    }
+
     return 0;
 }
 
@@ -1904,6 +1911,30 @@ int gb_emu_cpu_run_next_inst(struct gb_emu *emu)
         gb_emu_clock_tick(emu);
         cycles += 4;
         goto inst_end;
+    }
+
+    if (emu->mmu.hdma_active && emu->gpu.mode == GB_GPU_MODE_HBLANK) {
+        int i;
+
+        for (i = 0; i < 16 && emu->mmu.hdma_length_left; i++) {
+            gb_emu_write8(emu, emu->mmu.hdma_dest, gb_emu_read8(emu, emu->mmu.hdma_source));
+
+            emu->mmu.hdma_dest++;
+            emu->mmu.hdma_source++;
+            emu->mmu.hdma_length_left--;
+        }
+
+        if (!emu->mmu.hdma_length_left) {
+            emu->mmu.hdma_length_left = 0xFF;
+            emu->mmu.hdma_active = 0;
+        }
+
+        while (emu->gpu.mode == GB_GPU_MODE_HBLANK) {
+            cycles += 4;
+            gb_emu_clock_tick(emu);
+        }
+
+        return cycles;
     }
 
     if (emu->hook_flag) {

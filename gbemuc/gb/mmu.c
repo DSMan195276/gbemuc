@@ -18,14 +18,30 @@
  *
  */
 
-static uint8_t wram_read8(struct gb_emu *emu, uint16_t addr, uint16_t low)
+static uint8_t wram_bank0_read8(struct gb_emu *emu, uint16_t addr, uint16_t low)
 {
-    return emu->mmu.wram[addr];
+    return emu->mmu.wram[0][addr];
 }
 
-static void wram_write8(struct gb_emu *emu, uint16_t addr, uint16_t low, uint8_t val)
+static void wram_bank0_write8(struct gb_emu *emu, uint16_t addr, uint16_t low, uint8_t val)
 {
-    emu->mmu.wram[addr] = val;
+    emu->mmu.wram[0][addr] = val;
+}
+
+static uint8_t wram_bank1_read8(struct gb_emu *emu, uint16_t addr, uint16_t low)
+{
+    if (!gb_emu_is_cgb(emu) || emu->mmu.cgb_wram_bank_no == 0)
+        return emu->mmu.wram[1][addr];
+    else
+        return emu->mmu.wram[emu->mmu.cgb_wram_bank_no][addr];
+}
+
+static void wram_bank1_write8(struct gb_emu *emu, uint16_t addr, uint16_t low, uint8_t val)
+{
+    if (!gb_emu_is_cgb(emu) || emu->mmu.cgb_wram_bank_no == 0)
+        emu->mmu.wram[1][addr] = val;
+    else
+        emu->mmu.wram[emu->mmu.cgb_wram_bank_no][addr] = val;
 }
 
 /*
@@ -64,8 +80,10 @@ enum {
     GB_MMU_BANK0,
     GB_MMU_BANK1,
     GB_MMU_VRAM,
-    GB_MMU_WRAM,
-    GB_MMU_WRAM2,
+    GB_MMU_WRAM_BANK0,
+    GB_MMU_WRAM_BANK1,
+    GB_MMU_WRAM_ECHO_BANK0,
+    GB_MMU_WRAM_ECHO_BANK1,
     GB_MMU_SPRITE,
     GB_MMU_EMPTY,
     GB_MMU_IO,
@@ -77,12 +95,21 @@ static struct gb_mmu_entry mmu_entries[] = {
     [GB_MMU_VRAM] =
         { 0x8000, 0x9FFF,
             gb_gpu_vram_read8, gb_gpu_vram_write8 },
-    [GB_MMU_WRAM] =
-        { 0xC000, 0xDFFF,
-            wram_read8, wram_write8 },
-    [GB_MMU_WRAM2] =
-        { 0xE000, 0xFDFF,
-            wram_read8, wram_write8 },
+
+    [GB_MMU_WRAM_BANK0] =
+        { 0xC000, 0xCFFF,
+            wram_bank0_read8, wram_bank0_write8 },
+    [GB_MMU_WRAM_BANK1] =
+        { 0xD000, 0xDFFF,
+            wram_bank1_read8, wram_bank1_write8 },
+
+    [GB_MMU_WRAM_ECHO_BANK0] =
+        { 0xE000, 0xEFFF,
+            wram_bank0_read8, wram_bank0_write8 },
+    [GB_MMU_WRAM_ECHO_BANK1] =
+        { 0xF000, 0xFDFF,
+            wram_bank1_read8, wram_bank1_write8 },
+
     [GB_MMU_SPRITE] =
         { 0xFE00, 0xFE9F,
             gb_gpu_sprite_read8, gb_gpu_sprite_write8 },
@@ -129,17 +156,19 @@ static inline struct gb_mmu_entry *get_mmu_entry(struct gb_emu *emu, uint16_t ad
         return emu->mmu.eram_controller;
 
     case 0xC:
+        return mmu_entries + GB_MMU_WRAM_BANK0;
+
     case 0xD:
-        return mmu_entries + GB_MMU_WRAM;
+        return mmu_entries + GB_MMU_WRAM_BANK1;
 
     case 0xE:
-        return mmu_entries + GB_MMU_WRAM2;
+        return mmu_entries + GB_MMU_WRAM_ECHO_BANK0;
 
     case 0xF: {
         uint8_t b = (addr >> 8) & 0xF;
         switch (b) {
         case 0x0 ... 0xD:
-            return mmu_entries + GB_MMU_WRAM2;
+            return mmu_entries + GB_MMU_WRAM_ECHO_BANK1;
 
         case 0xE: {
             uint8_t c = (addr >> 4) & 0xF;

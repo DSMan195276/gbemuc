@@ -53,6 +53,19 @@ struct gb_mmu_mbc5 {
     uint8_t  ram_bank_enable;
 };
 
+#define GB_IO_CGB_WRAM_BANK_NO 0xFF70
+
+#define GB_IO_CGB_HDMA_SOURCE_HIGH 0xFF51
+#define GB_IO_CGB_HDMA_SOURCE_LOW  0xFF52
+#define GB_IO_CGB_HDMA_DEST_HIGH   0xFF53
+#define GB_IO_CGB_HDMA_DEST_LOW    0xFF54
+#define GB_IO_CGB_HDMA_MODE        0xFF55
+
+#define GB_CGB_HDMA_DMA_TYPE (1 << 7)
+
+#define GB_CGB_HDMA_DMA_HBLANK (1 << 7)
+#define GB_CGB_HDMA_DMA_GENERAL (0)
+
 struct gb_mmu {
     int bios_flag;
     struct gb_mmu_mbc1 mbc1;
@@ -63,8 +76,16 @@ struct gb_mmu {
 
     char eram[16][8 * 1024]; /* External RAM */
 
-    char wram[8 * 1024]; /* Working RAM space */
+    int cgb_wram_bank_no;
+    char wram[8][4 * 1024]; /* Working RAM space */
+
     char zram[128]; /* Zero-page RAM */
+
+    uint16_t hdma_source, hdma_dest;
+
+    int hdma_active;
+    int hdma_type;
+    int hdma_length_left;
 };
 
 void gb_mmu_add_mmu_entry(struct gb_mmu *mmu, struct gb_mmu_entry *entry);

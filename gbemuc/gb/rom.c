@@ -95,6 +95,8 @@ size_t gb_ram_size[] = {
 
 void gb_rom_open(struct gb_rom *rom, const char *filename)
 {
+    int i;
+    uint8_t hchecksum;
     char sav_file[strlen(filename) + 5];
     FILE *f = fopen(filename, "r");
 
@@ -128,6 +130,12 @@ void gb_rom_open(struct gb_rom *rom, const char *filename)
     memcpy(&rom->header_checksum,  rom->data + 0x14D,  1);
     memcpy(&rom->global_checksum,  rom->data + 0x14E,  2);
 
+    hchecksum = 0;
+    for (i = 0; i < sizeof(rom->title); i++)
+        hchecksum += rom->title[i];
+
+    rom->title_chksum = hchecksum;
+
     snprintf(sav_file, sizeof(sav_file), "%s.sav", filename);
     printf("Sav: %s\n", sav_file);
 
@@ -145,6 +153,8 @@ void gb_rom_dump_header(struct gb_rom *rom, FILE *file)
         fprintf(file, "TITLE: %.11s\n", rom->title);
     else
         fprintf(file, "TITLE: %.15s\n", rom->title);
+
+    fprintf(file, "TITLE HASH: 0x%02x\n", rom->title_chksum);
 
     fprintf(file, "SGB: %s\n", (rom->sgb_code)? "Yes": "No");
 

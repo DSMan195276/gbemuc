@@ -13,6 +13,7 @@
 #define GB_TIMER_TAC_CLOCK_SELECT 0x03
 
 /* These numbers are defined by the GameBoy */
+//int gb_clock_select_divisor[] = { 256, 4, 16, 64 };
 int gb_clock_select_divisor[] = { 256, 4, 16, 64 };
 
 void gb_timer_tima_ticks(struct gb_emu *emu, int cycles)

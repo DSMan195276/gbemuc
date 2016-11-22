@@ -13,6 +13,7 @@ struct gb_rom {
     char title[15];
     char man_code[4];
     uint8_t cgb_flag;
+    uint8_t title_chksum;
 
     char new_license_code[2];
     uint8_t sgb_code;
@@ -44,6 +45,7 @@ enum gb_dest_code {
 };
 
 enum gb_cgb_code {
+    GB_CGB_NONE     = 0x00,
     GB_CGB_OPTIONAL = 0x80,
     GB_CGB_REQUIRED = 0xC0,
 };

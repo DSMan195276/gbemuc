@@ -171,13 +171,13 @@ static void display_tile(struct gb_gpu *gpu, int spriten, union gb_gpu_color_u *
 {
     int i, k;
     for (i = 0; i < 8; i++) {
-        uint8_t low = gpu->vram.seg.sprites[spriten][i * 2];
-        uint8_t high = gpu->vram.seg.sprites[spriten][i * 2 + 1];
+        uint8_t low = gpu->vram[0].seg.sprites[spriten][i * 2];
+        uint8_t high = gpu->vram[0].seg.sprites[spriten][i * 2 + 1];
         for (k = 0; k < 8; k++) {
             int lo = !!(low & (1 << (7 - k)));
             int hi = !!(high & (1 << (7 - k)));
             int pix = lo | (hi << 1);
-            screenbuf[(x + i) * GB_SCREEN_WIDTH + (y + k)] = gb_colors[gpu->display->palette_selection][pix];
+            screenbuf[(x + i) * GB_SCREEN_WIDTH + (y + k)] = gpu->display->dmg_theme.bg[pix];
         }
     }
 }

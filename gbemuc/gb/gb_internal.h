@@ -9,10 +9,12 @@ struct gb_emu;
 
 static inline void gb_emu_clock_tick(struct gb_emu *emu)
 {
-    gb_emu_gpu_tick(emu);
-    gb_timer_ticks(emu, 4);
+    int cycles = emu->cpu.double_speed? 2: 4;
 
-    emu->sound.apu_cycles += 4;
+    gb_emu_gpu_tick(emu, cycles);
+    gb_timer_ticks(emu, cycles);
+
+    emu->sound.apu_cycles += cycles;
 
     if (emu->sound.apu_cycles > 72000) {
         int sample_count;

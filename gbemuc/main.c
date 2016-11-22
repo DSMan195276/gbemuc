@@ -22,7 +22,10 @@ int main(int argc, char **argv)
 
     DEBUG_INIT();
 
-    gb_emu_init(&emu, NULL);
+    gb_emu_init(&emu);
+
+    emu.config.type = GB_EMU_CGB;
+    //emu.config.cgb_real_colors = 1;
 
     if (argc == 2) {
         printf("Loading rom: %s\n", argv[1]);
@@ -45,6 +48,9 @@ int main(int argc, char **argv)
     DEBUG_OFF();
     gb_emu_set_display(&emu, disp);
     gb_emu_set_sound(&emu, sound);
+
+    gb_emu_reset(&emu);
+
     gb_debugger_run(&emu);
 
     gb_emu_clear(&emu);

@@ -60,6 +60,8 @@ enum {
 
 #define GB_IO_CPU_IF 0xFF0F
 
+#define GB_IO_CPU_CGB_KEY1 0xFF4D
+
 struct gb_cpu {
     union {
         uint8_t b[GB_REG_TOTAL * 2];
@@ -80,6 +82,9 @@ struct gb_cpu {
      * 'int_count' is decremented at the end of running an instruction. */
     unsigned int next_ime:1;
     unsigned int int_count :2;
+
+    unsigned int double_speed :1;
+    unsigned int do_speed_switch :1;
 
     uint8_t int_enabled; /* Bits corespond to enabled interrupts */
     uint8_t int_flags; /* Bits correspond to what interrupts have been triggered */

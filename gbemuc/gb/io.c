@@ -9,11 +9,34 @@
 #include "gb/gpu.h"
 #include "gb/io.h"
 #include "gb/sound.h"
+#include "gb_internal.h"
 #include "debug.h"
+
+void gb_emu_io_reset(struct gb_emu *emu)
+{
+    emu->gpu.ctl = 0x91;
+
+    emu->gpu.cur_line = 0;
+    emu->gpu.cur_line_cmp = 0;
+    emu->gpu.scroll_x = 0;
+    emu->gpu.scroll_y = 0;
+    emu->gpu.status = 0;
+
+    emu->gpu.window_x = 0;
+    emu->gpu.window_y = 0;
+
+    emu->gpu.cgb_vram_bank_no = 0;
+    emu->mmu.cgb_wram_bank_no = 1;
+
+    emu->timer.div = 0;
+    emu->timer.tima = 0;
+    emu->timer.tma = 0;
+    emu->timer.tac = 0;
+}
 
 uint8_t gb_emu_io_read8(struct gb_emu *emu, uint16_t addr, uint16_t low)
 {
-    uint8_t ret = 0xFF;
+    int ret = 0x100;
 
     switch (addr + low) {
     case GB_IO_CPU_IF:
@@ -91,6 +114,66 @@ uint8_t gb_emu_io_read8(struct gb_emu *emu, uint16_t addr, uint16_t low)
         break;
     }
 
+    if (!gb_emu_is_cgb(emu) || ret != 0x100) {
+        if (ret == 0x100)
+            ret = 0xFF;
+
+        return ret;
+    }
+
+    switch (addr + low) {
+    case GB_IO_CGB_WRAM_BANK_NO:
+        ret = emu->mmu.cgb_wram_bank_no;
+        break;
+
+    case GB_IO_CGB_VRAM_BANK_NO:
+        ret = emu->gpu.cgb_vram_bank_no;
+        break;
+
+    case GB_IO_CGB_BG_PAL_INDEX:
+        ret = emu->gpu.cgb_bkgd_palette_index;
+        break;
+
+    case GB_IO_CGB_BG_PAL_DATA:
+        ret = emu->gpu.cgb_bkgd_palette[emu->gpu.cgb_bkgd_palette_index & 0x3F];
+        break;
+
+    case GB_IO_CGB_SPRITE_PAL_INDEX:
+        ret = emu->gpu.cgb_sprite_palette_index;
+        break;
+
+    case GB_IO_CGB_SPRITE_PAL_DATA:
+        ret = emu->gpu.cgb_sprite_palette[emu->gpu.cgb_sprite_palette_index & 0x3F];
+        break;
+
+    case GB_IO_CGB_HDMA_SOURCE_LOW:
+        ret = emu->mmu.hdma_source & 0xFF;
+        break;
+
+    case GB_IO_CGB_HDMA_SOURCE_HIGH:
+        ret = (emu->mmu.hdma_source >> 8) & 0xFF;
+        break;
+
+    case GB_IO_CGB_HDMA_DEST_LOW:
+        ret = emu->mmu.hdma_dest & 0xFF;
+        break;
+
+    case GB_IO_CGB_HDMA_DEST_HIGH:
+        ret = (emu->mmu.hdma_dest >> 8) & 0xFF;
+        break;
+
+    case GB_IO_CGB_HDMA_MODE:
+        ret = ((!emu->mmu.hdma_active) << 7) | (emu->mmu.hdma_length_left / 0x10 - 1);
+        break;
+
+    case GB_IO_CPU_CGB_KEY1:
+        ret = (emu->cpu.double_speed << 7) | emu->cpu.do_speed_switch;
+        break;
+    }
+
+    if (ret == 0x100)
+        ret = 0xFF;
+
     return ret;
 }
 
@@ -98,8 +181,16 @@ void gb_emu_io_write8(struct gb_emu *emu, uint16_t addr, uint16_t low, uint8_t b
 {
     switch (addr + low) {
     case GB_IO_BIOS_FLAG:
-        if (byte == 1)
+        if (byte == 1) {
+
+            /* Games know they're running on a CGB if register A is set to 0x11
+             * on startup. So we do that here, which happens right before the
+             * BIOS starts the game */
+            if (!emu->mmu.bios_flag && gb_emu_is_cgb(emu))
+                emu->cpu.r.b[GB_REG_A] = 0x11;
+
             emu->mmu.bios_flag = 1;
+        }
         DEBUG_ON();
         break;
 
@@ -185,6 +276,90 @@ void gb_emu_io_write8(struct gb_emu *emu, uint16_t addr, uint16_t low, uint8_t b
 
     case 0xFF10 ... 0xFF3F:
         gb_sound_write(&emu->sound, emu->sound.apu_cycles, addr + low, byte);
+        break;
+    }
+
+    if (!gb_emu_is_cgb(emu))
+        return ;
+
+    switch (addr + low) {
+    case GB_IO_CGB_WRAM_BANK_NO:
+        emu->mmu.cgb_wram_bank_no = byte & 0x07;
+        break;
+
+    case GB_IO_CGB_VRAM_BANK_NO:
+        emu->gpu.cgb_vram_bank_no = byte & 0x1;
+        break;
+
+    case GB_IO_CGB_BG_PAL_INDEX:
+        emu->gpu.cgb_bkgd_palette_index = byte;
+        break;
+
+    case GB_IO_CGB_BG_PAL_DATA:
+        emu->gpu.cgb_bkgd_palette[emu->gpu.cgb_bkgd_palette_index & 0x3F] = byte;
+
+        if (emu->gpu.cgb_bkgd_palette_index & GB_GPU_CGB_PAL_INDEX_AUTO_INCREMENT)
+            emu->gpu.cgb_bkgd_palette_index = (emu->gpu.cgb_bkgd_palette_index + 1) & 0xBF;
+
+        break;
+
+    case GB_IO_CGB_SPRITE_PAL_INDEX:
+        emu->gpu.cgb_sprite_palette_index = byte;
+        break;
+
+    case GB_IO_CGB_SPRITE_PAL_DATA:
+        emu->gpu.cgb_sprite_palette[emu->gpu.cgb_sprite_palette_index & 0x3F] = byte;
+
+        if (emu->gpu.cgb_sprite_palette_index & GB_GPU_CGB_PAL_INDEX_AUTO_INCREMENT)
+            emu->gpu.cgb_sprite_palette_index = (emu->gpu.cgb_sprite_palette_index + 1) & 0xBF;
+
+        break;
+
+    case GB_IO_CGB_HDMA_SOURCE_LOW:
+        emu->mmu.hdma_source = (emu->mmu.hdma_source & 0xFF00) | (byte & 0xF0);
+        break;
+
+    case GB_IO_CGB_HDMA_SOURCE_HIGH:
+        emu->mmu.hdma_source = (emu->mmu.hdma_source & 0x00FF) | (byte << 8);
+        break;
+
+    case GB_IO_CGB_HDMA_DEST_LOW:
+        emu->mmu.hdma_dest = (emu->mmu.hdma_dest & 0xFF00) | (byte & 0xF0);
+        break;
+
+    case GB_IO_CGB_HDMA_DEST_HIGH:
+        emu->mmu.hdma_dest = (emu->mmu.hdma_dest & 0x00FF) | ((byte & 0x1F) << 8) | 0x8000;
+        break;
+
+    case GB_IO_CGB_HDMA_MODE:
+        if (emu->mmu.hdma_active) {
+            if ((byte & GB_CGB_HDMA_DMA_TYPE) == 0)
+                emu->mmu.hdma_active = 0;
+            break;
+        }
+
+        emu->mmu.hdma_type = byte & GB_CGB_HDMA_DMA_TYPE;
+        emu->mmu.hdma_length_left = ((byte & 0x7F) + 1) * 0x10;
+        emu->mmu.hdma_active = 1;
+
+        if (emu->mmu.hdma_type == GB_CGB_HDMA_DMA_GENERAL) {
+            while (emu->mmu.hdma_length_left) {
+                if ((emu->mmu.hdma_length_left % 2) == 0)
+                    gb_emu_clock_tick(emu);
+                emu->gpu.vram[emu->gpu.cgb_vram_bank_no].mem[emu->mmu.hdma_dest - 0x8000] = gb_emu_read8(emu, emu->mmu.hdma_source);
+
+                emu->mmu.hdma_dest++;
+                emu->mmu.hdma_source++;
+                emu->mmu.hdma_length_left--;
+            }
+
+            emu->mmu.hdma_active = 0;
+            emu->mmu.hdma_length_left = 0xFF;
+        }
+        break;
+
+    case GB_IO_CPU_CGB_KEY1:
+        emu->cpu.do_speed_switch = byte & 1;
         break;
     }
 }

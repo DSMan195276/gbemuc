@@ -2,13 +2,13 @@
 CC      ?= cc
 CXX     ?= c++
 
-CFLAGS  += -Wall -g -std=c99 -O2 \
+CFLAGS  += -Wall -g -pg -std=c99 -O2 \
 		   -Wno-unused-result
-CXXFLAGS ?= -g -O2
+CXXFLAGS ?= -g -O2 -pg
 
 CPPFLAGS ?= -D_GNU_SOURCE
 
-LDFLAGS ?= -lm
+LDFLAGS ?= -lm -pg
 LEX     ?= flex
 LFLAGS  ?=
 YACC    ?= bison

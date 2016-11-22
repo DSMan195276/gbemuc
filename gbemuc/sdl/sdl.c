@@ -9,7 +9,7 @@
 
 /* GB runs at 59.7 FPS. This number is in microseconds to give us a bit better
  * precision for our sleep */
-static const int gb_us_per_frame = 17000;
+static const int gb_us_per_frame = 16750;
 
 struct gb_display_sdl {
     struct gb_gpu_display gb_disp;
@@ -19,9 +19,29 @@ struct gb_display_sdl {
     SDL_Renderer *dest_rend;
 
     unsigned int last_tick;
+    unsigned int show_fps;
+    int fps_count;
+    unsigned int fps_start;
 
     unsigned int p_pressed;
+    unsigned int f_pressed;
+
+    unsigned int cur_palette;
 };
+
+struct gb_dmg_theme gb_palettes[] = {
+    GB_DEFINE_THEME(0xFFFFF77B, 0xFFB5AE4A, 0xFF6B6931, 0xFF212010,
+                    0xFFFFF77B, 0xFFB5AE4A, 0xFF6B6931, 0xFF212010,
+                    0xFFFFF77B, 0xFFB5AE4A, 0xFF6B6931, 0xFF212010),
+    GB_DEFINE_THEME(0xFFFFFFFF, 0xFFAAAAAA, 0xFF555555, 0xFF000000,
+                    0xFFFFFFFF, 0xFFAAAAAA, 0xFF555555, 0xFF000000,
+                    0xFFFFFFFF, 0xFFAAAAAA, 0xFF555555, 0xFF000000),
+    GB_DEFINE_THEME(0xFF9BBC0F, 0xFF8BAC0F, 0xFF305230, 0xFF0F380F,
+                    0xFF9BBC0F, 0xFF8BAC0F, 0xFF305230, 0xFF0F380F,
+                    0xFF9BBC0F, 0xFF8BAC0F, 0xFF305230, 0xFF0F380F),
+};
+
+#define GB_PALETTES (sizeof(gb_palettes)/sizeof(*gb_palettes))
 
 static void gb_sdl_display(struct gb_gpu_display *disp, union gb_gpu_color_u *buff)
 {
@@ -56,7 +76,22 @@ static void gb_sdl_display(struct gb_gpu_display *disp, union gb_gpu_color_u *bu
             nanosleep(&sleep_time, NULL);
         }
 
-        sdl->last_tick = SDL_GetTicks();
+        now = SDL_GetTicks();
+        if (sdl->show_fps) {
+            sdl->fps_count++;
+
+            if (sdl->fps_count == 60) {
+                sdl->fps_count = 0;
+                float fps = (float)(now - sdl->fps_start) / 1000;
+                fps = 60 / fps;
+
+                printf("FPS: %f\n", fps);
+
+                sdl->fps_start = now;
+            }
+        }
+
+        sdl->last_tick = now;
     }
 }
 
@@ -79,12 +114,20 @@ static void gb_sdl_get_keystate(struct gb_gpu_display *disp, struct gb_keypad *k
     keys->key_select = !keystate[SDL_SCANCODE_RCTRL];
 
     if (keystate[SDL_SCANCODE_P] && !sdl->p_pressed) {
-        disp->palette_selection = (disp->palette_selection + 1) % disp->max_palette;
+        sdl->cur_palette = (sdl->cur_palette + 1) % GB_PALETTES;
+        disp->dmg_theme = gb_palettes[sdl->cur_palette];
+
         sdl->p_pressed = 1;
     } else if (!keystate[SDL_SCANCODE_P]) {
         sdl->p_pressed = 0;
     }
 
+    if (keystate[SDL_SCANCODE_F] && !sdl->f_pressed) {
+        sdl->show_fps = !sdl->show_fps;
+        sdl->f_pressed = 1;
+    } else if (!keystate[SDL_SCANCODE_F]) {
+        sdl->f_pressed = 0;
+    }
     return ;
 }
 

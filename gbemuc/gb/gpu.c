@@ -30,13 +30,93 @@ union gb_gpu_color_u gb_colors[][4] = {
     },
 };
 
-static void render_background(struct gb_gpu *gpu)
+static uint32_t make_cgb_argb_color(uint16_t old_color, int use_real_colors)
+{
+    uint32_t col = 0xFF000000;
+    int r, g, b;
+    uint16_t color = use_real_colors? cgb_color_palette[old_color & 0x7FFF]: old_color;
+
+    r = color & 0x1F;
+    g = (color >> 5) & 0x1F;
+    b = (color >> 10) & 0x1F;
+
+    col |= (r << 3) << 16;
+    col |= (g << 3) << 8;
+    col |= (b << 3);
+
+    return col;
+}
+
+static void render_background_tile(struct gb_emu *emu, struct gb_gpu *gpu, union gb_gpu_color_u *line,
+        uint8_t *bkgd_tiles, uint8_t *bkgd_attributes, int x_pix, int y_pix, int tile_offset_byte)
+{
+    uint8_t c, pal_col;
+    uint8_t lo, hi;
+    int sprite;
+    uint8_t attr;
+    uint8_t tile_index;
+    int x_flip = 0, y_flip = 0, vbank = 0, priority = 0, cgb_palette = 0;
+
+    if ((gpu->ctl & GB_GPU_CTL_BKGD_SET)) {
+        sprite = bkgd_tiles[x_pix / 8];
+        attr = bkgd_attributes[x_pix / 8];
+    } else {
+        sprite = *(int8_t *)&bkgd_tiles[x_pix / 8] + 256;
+        attr = *(int8_t *)&bkgd_attributes[x_pix / 8] + 256;
+    }
+
+    if (gb_emu_is_cgb(emu)) {
+        x_flip = !!(attr & GB_GPU_CGB_BG_ATTR_X_FLIP);
+        y_flip = !!(attr & GB_GPU_CGB_BG_ATTR_Y_FLIP);
+        vbank = !!(attr & GB_GPU_CGB_BG_ATTR_VBANK);
+        priority = !!(attr & GB_GPU_CGB_BG_ATTR_PRIORITY);
+        cgb_palette = attr & GB_GPU_CGB_BG_ATTR_PAL_NO;
+    }
+
+    if (y_flip)
+        tile_offset_byte = 7 - tile_offset_byte;
+
+    tile_index = 7 - (x_pix % 8);
+    if (x_flip)
+        tile_index = 7 - tile_index;
+
+    lo = gpu->vram[vbank].seg.sprites[sprite][tile_offset_byte * 2] & (1 << tile_index);
+    hi = gpu->vram[vbank].seg.sprites[sprite][tile_offset_byte * 2 + 1] & (1 << tile_index);
+
+    c = ((lo)? 1: 0) + ((hi)? 2: 0);
+
+    gpu->bkgd_line_colors[y_pix] = c;
+    gpu->bkgd_priority[y_pix] = priority;
+
+    /* Pull the actual color out of the background palette
+     * We shift our color on the palette by 'c', moving two bits for every
+     * color, so our target color end's up at the bottom, and then mask out
+     * the rest */
+
+    if (!gb_emu_is_cgb(emu)) {
+        pal_col = (gpu->back_palette >> (c * 2)) & 0x03;
+        line[y_pix] = emu->gpu.display->dmg_theme.bg[pal_col];
+        //line[y_pix] = gb_colors[gpu->display->palette_selection][pal_col];
+    } else {
+        uint8_t low = gpu->cgb_bkgd_palette[cgb_palette * 8 + c * 2];
+        uint8_t high = gpu->cgb_bkgd_palette[cgb_palette * 8 + c * 2 + 1];
+        uint16_t color = low | (high << 8);
+        line[y_pix].i_color = make_cgb_argb_color(color, emu->config.cgb_real_colors);
+
+        /*
+        if (priority)
+            line[y_pix].i_color |= 0xFFFFFF00; */
+    }
+}
+
+static void render_background(struct gb_emu *emu, struct gb_gpu *gpu)
 {
     union gb_gpu_color_u *line;
     int bkgd_y_pix;
     int tile_offset_byte;
     int i;
     uint8_t *bkgd_tiles;
+    uint8_t *bkgd_attributes;
     int tile;
 
     line = &gpu->screenbuf[gpu->cur_line * GB_SCREEN_WIDTH];
@@ -44,53 +124,32 @@ static void render_background(struct gb_gpu *gpu)
     bkgd_y_pix = (gpu->cur_line + gpu->scroll_y) % (8 * 32);
 
     tile = (bkgd_y_pix) / 8 * 32;
-    bkgd_tiles = gpu->vram.seg.bkgd[(gpu->ctl & GB_GPU_CTL_BKGD_MAP)? 1: 0] + tile;
+    bkgd_tiles = gpu->vram[0].seg.bkgd[(gpu->ctl & GB_GPU_CTL_BKGD_MAP)? 1: 0] + tile;
+    bkgd_attributes = gpu->vram[1].seg.bkgd[(gpu->ctl & GB_GPU_CTL_BKGD_MAP)? 1: 0] + tile;
 
     tile_offset_byte = bkgd_y_pix % 8;
 
     for (i = 0; i < GB_SCREEN_WIDTH; i++) {
-        uint8_t c, pal_col;
-        uint8_t lo, hi;
-        int sprite;
         uint8_t x_pix;
 
         x_pix = (i + gpu->scroll_x) % (8 * 32);
 
-        if ((gpu->ctl & GB_GPU_CTL_BKGD_SET)) {
-            sprite = bkgd_tiles[x_pix / 8];
-        } else {
-            sprite = *(int8_t *)&bkgd_tiles[x_pix / 8] + 256;
-        }
-
-        lo = gpu->vram.seg.sprites[sprite][tile_offset_byte * 2] & (1 << (7 - (x_pix % 8)));
-        hi = gpu->vram.seg.sprites[sprite][tile_offset_byte * 2 + 1] & (1 << (7 - (x_pix % 8)));
-
-        c = ((lo)? 1: 0) + ((hi)? 2: 0);
-
-        gpu->bkgd_line_colors[i] = c;
-
-        /* Pull the actual color out of the background palette
-         * We shift our color on the palette by 'c', moving two bits for every
-         * color, so our target color end's up at the bottom, and then mask out
-         * the rest */
-
-        pal_col = (gpu->back_palette >> (c * 2)) & 0x03;
-
         /*
         if ((i % 8) == 0)
-            line[i].i_color = 0xFF00FF00;
+            line[i].i_color = 0xFFFF0000;
         else */
-            line[i] = gb_colors[gpu->display->palette_selection][pal_col];
+            render_background_tile(emu, gpu, line, bkgd_tiles, bkgd_attributes, x_pix, i, tile_offset_byte);
     }
 }
 
-static void render_window(struct gb_gpu *gpu)
+static void render_window(struct gb_emu *emu, struct gb_gpu *gpu)
 {
     union gb_gpu_color_u *line;
     int bkgd_y_pix;
     int tile_offset_byte;
     int i;
     uint8_t *bkgd_tiles;
+    uint8_t *bkgd_attributes;
     int tile;
 
     if (gpu->window_y > gpu->cur_line)
@@ -101,14 +160,12 @@ static void render_window(struct gb_gpu *gpu)
     bkgd_y_pix = gpu->cur_line - gpu->window_y;
 
     tile = (bkgd_y_pix / 8) * 32;
-    bkgd_tiles = gpu->vram.seg.bkgd[(gpu->ctl & GB_GPU_CTL_WINDOW_MAP)? 1: 0] + tile;
+    bkgd_tiles      = gpu->vram[0].seg.bkgd[(gpu->ctl & GB_GPU_CTL_WINDOW_MAP)? 1: 0] + tile;
+    bkgd_attributes = gpu->vram[1].seg.bkgd[(gpu->ctl & GB_GPU_CTL_WINDOW_MAP)? 1: 0] + tile;
 
     tile_offset_byte = bkgd_y_pix % 8;
 
     for (i = 0; i < GB_SCREEN_WIDTH; i++) {
-        uint8_t c, pal_col;
-        uint8_t lo, hi;
-        int sprite;
         int x_pix;
 
         x_pix = i - gpu->window_x + 7;
@@ -116,38 +173,19 @@ static void render_window(struct gb_gpu *gpu)
         if (x_pix < 0 || x_pix >= GB_SCREEN_WIDTH)
             continue;
 
-        if (gpu->ctl & GB_GPU_CTL_BKGD_SET)
-            sprite = bkgd_tiles[x_pix / 8];
-        else
-            sprite = *(int8_t *)&bkgd_tiles[x_pix / 8] + 256;
-
-        lo = gpu->vram.seg.sprites[sprite][tile_offset_byte * 2] & (1 << (7 - (x_pix % 8)));
-        hi = gpu->vram.seg.sprites[sprite][tile_offset_byte * 2 + 1] & (1 << (7 - (x_pix % 8)));
-
-        c = ((lo)? 1: 0) | ((hi)? 2: 0);
-
-        gpu->bkgd_line_colors[i] = c;
-
-        /* Pull the actual color out of the background palette
-         * We shift our color on the palette by 'c', moving two bits for every
-         * color, so our target color end's up at the bottom, and then mask out
-         * the rest */
-
-        pal_col = (gpu->back_palette >> (c * 2)) & 0x03;
-
         /*
         if ((i % 8) == 0)
-            line[i].i_color = 0xFFFF0000;
+            line[i].i_color = 0xFF00FF00;
         else */
-            line[i] = gb_colors[gpu->display->palette_selection][pal_col];
+            render_background_tile(emu, gpu, line, bkgd_tiles, bkgd_attributes, x_pix, i, tile_offset_byte);
     }
 }
 
-static void render_single_sprite(struct gb_gpu *gpu, union gb_gpu_color_u *line, int x, int y, uint8_t tile_no, uint8_t flags)
+static void render_single_sprite(struct gb_emu *emu, struct gb_gpu *gpu, union gb_gpu_color_u *line, int x, int y, uint8_t tile_no, uint8_t flags, int *sprite_priority_map)
 {
     int flip_x, flip_y, pal_num, behind_bg;
     uint8_t tile_hi, tile_lo;
-    uint8_t palette;
+    uint8_t palette, cgb_palette = 0, vram_bank = 0;
     int y_off = gpu->cur_line - y;
     int x_loc = 0;
     int sprite_size = 8;
@@ -160,12 +198,17 @@ static void render_single_sprite(struct gb_gpu *gpu, union gb_gpu_color_u *line,
     pal_num = !!(flags & GB_GPU_SPRITE_FLAG_PAL_NUM);
     behind_bg = !!(flags & GB_GPU_SPRITE_FLAG_BEHIND_BG);
 
+    if (gb_emu_is_cgb(emu)) {
+        cgb_palette = flags & GB_GPU_SPRITE_FLAG_CGB_PAL;
+        vram_bank = !!(flags & GB_GPU_SPRITE_FLAG_CGB_VBANK);
+    }
+
     if (!flip_y) {
-        tile_lo = gpu->vram.seg.sprites[tile_no][y_off * 2];
-        tile_hi = gpu->vram.seg.sprites[tile_no][y_off * 2 + 1];
+        tile_lo = gpu->vram[vram_bank].seg.sprites[tile_no][y_off * 2];
+        tile_hi = gpu->vram[vram_bank].seg.sprites[tile_no][y_off * 2 + 1];
     } else {
-        tile_lo = gpu->vram.seg.sprites[tile_no][(sprite_size - 1 - y_off) * 2];
-        tile_hi = gpu->vram.seg.sprites[tile_no][(sprite_size - 1 - y_off) * 2 + 1];
+        tile_lo = gpu->vram[vram_bank].seg.sprites[tile_no][(sprite_size - 1 - y_off) * 2];
+        tile_hi = gpu->vram[vram_bank].seg.sprites[tile_no][(sprite_size - 1 - y_off) * 2 + 1];
     }
 
     palette = gpu->obj_pal[pal_num];
@@ -186,18 +229,39 @@ static void render_single_sprite(struct gb_gpu *gpu, union gb_gpu_color_u *line,
         if (behind_bg && gpu->bkgd_line_colors[x + x_loc] != 0)
             continue;
 
-        col = (palette >> (sel * 2)) & 0x03;
-        line[x + x_loc] = gb_colors[gpu->display->palette_selection][col];
+        if (gb_emu_is_cgb(emu) && gpu->bkgd_priority[x + x_loc])
+            continue;
+
+        /* This marks off the places we have already drawn a sprite on for this
+         * line. The first sprites take priority over the last sprites, so if
+         * we have already put a sprite at this pixel then we don't ever draw
+         * over it. */
+        if (sprite_priority_map[x + x_loc])
+            continue;
+        else
+            sprite_priority_map[x + x_loc] = 1;
+
+        if (!gb_emu_is_cgb(emu)) {
+            col = (palette >> (sel * 2)) & 0x03;
+            line[x + x_loc] = emu->gpu.display->dmg_theme.sprites[pal_num][col];
+            //line[x + x_loc] = gb_colors[gpu->display->palette_selection][col];
+        } else {
+            uint8_t low = gpu->cgb_sprite_palette[cgb_palette * 8 + sel * 2];
+            uint8_t high = gpu->cgb_sprite_palette[cgb_palette * 8 + sel * 2 + 1];
+            uint16_t color = low | (high << 8);
+            line[x + x_loc].i_color = make_cgb_argb_color(color, emu->config.cgb_real_colors);
+        }
     }
 }
 
-static void render_sprites(struct gb_gpu *gpu)
+static void render_sprites(struct gb_emu *emu, struct gb_gpu *gpu)
 {
     union gb_gpu_color_u *line;
     int s;
     int current_line = gpu->cur_line; /* Line being rendered */
     int count = 0;
     int sprite_size = 8;
+    int sprite_priority_map[GB_SCREEN_WIDTH] = { 0 };
 
     if (gpu->ctl & GB_GPU_CTL_SPRITES_SIZE)
         sprite_size = 16;
@@ -234,24 +298,24 @@ static void render_sprites(struct gb_gpu *gpu)
         if (x + 8 == 0 || x >= GB_SCREEN_WIDTH)
             continue;
 
-        render_single_sprite(gpu, line, x, y, attr_tile, attr_flags);
+        render_single_sprite(emu, gpu, line, x, y, attr_tile, attr_flags, sprite_priority_map);
     }
 }
 
-void gb_gpu_render_line(struct gb_gpu *gpu)
+void gb_gpu_render_line(struct gb_emu *emu, struct gb_gpu *gpu)
 {
 
     if (!(gpu->ctl & GB_GPU_CTL_DISPLAY))
         return ;
 
     if (gpu->ctl & GB_GPU_CTL_BKGD)
-        render_background(gpu);
+        render_background(emu, gpu);
 
     if (gpu->ctl & GB_GPU_CTL_WINDOW)
-        render_window(gpu);
+        render_window(emu, gpu);
 
     if (gpu->ctl & GB_GPU_CTL_SPRITES)
-        render_sprites(gpu);
+        render_sprites(emu, gpu);
 }
 
 void gb_gpu_update_key_line(struct gb_emu *emu)
@@ -287,8 +351,6 @@ void gb_gpu_update_key_line(struct gb_emu *emu)
 
 void gb_gpu_display_screen(struct gb_emu *emu, struct gb_gpu *gpu)
 {
-    gpu->display->max_palette = sizeof(gb_colors) / sizeof(*gb_colors);
-
     (gpu->display->get_keystate) (gpu->display, &gpu->keypad);
     gb_gpu_update_key_line(emu);
 
@@ -303,7 +365,7 @@ void gb_gpu_ctl_change(struct gb_emu *emu, struct gb_gpu *gpu, uint8_t new_ctl)
         int i, j;
         for (i = 0; i < GB_SCREEN_HEIGHT; i++)
             for (j = 0; j < GB_SCREEN_WIDTH; j++)
-                gpu->screenbuf[i * GB_SCREEN_WIDTH + j] = gb_colors[gpu->display->palette_selection][0];
+                gpu->screenbuf[i * GB_SCREEN_WIDTH + j] = gpu->display->dmg_theme.bg[0];
         gb_gpu_display_screen(emu, gpu);
 
         gpu->cur_line = 0;
@@ -322,7 +384,7 @@ static void gb_gpu_inc_line(struct gb_emu *emu)
         emu->cpu.int_flags |= (1 << GB_INT_LCD_STAT);
 }
 
-void gb_emu_gpu_tick(struct gb_emu *emu)
+void gb_emu_gpu_tick(struct gb_emu *emu, int cycles)
 {
     struct gb_gpu *gpu = &emu->gpu;
 
@@ -340,7 +402,7 @@ void gb_emu_gpu_tick(struct gb_emu *emu)
         return ;
     }
 
-    gpu->clock += 4;
+    gpu->clock += cycles;
 
     switch (gpu->mode) {
     case GB_GPU_MODE_HBLANK:
@@ -380,7 +442,7 @@ void gb_emu_gpu_tick(struct gb_emu *emu)
             if (gpu->status & GB_GPU_STATUS_HBLANK_INT)
                 emu->cpu.int_flags |= (1 << GB_INT_LCD_STAT);
 
-            gb_gpu_render_line(gpu);
+            gb_gpu_render_line(emu, gpu);
         }
         break;
 
@@ -413,27 +475,26 @@ void gb_gpu_dma(struct gb_emu *emu, uint8_t dma_addr)
         emu->gpu.oam.mem[i] = gb_emu_read8(emu, src_start + i);
 }
 
-void gb_gpu_init(struct gb_gpu *gpu, struct gb_gpu_display *display)
+void gb_gpu_init(struct gb_gpu *gpu)
 {
     memset(gpu, 0, sizeof(*gpu));
 
     memset(gpu->screenbuf, 0x00, sizeof(gpu->screenbuf));
-    gpu->display = display;
 }
 
 uint8_t gb_gpu_vram_read8(struct gb_emu *emu, uint16_t addr, uint16_t low)
 {
-    if (emu->gpu.mode != GB_GPU_MODE_VRAM)
-        return emu->gpu.vram.mem[addr];
-    else
-        return 0xFF;
+    //if (emu->gpu.mode != GB_GPU_MODE_VRAM)
+        return emu->gpu.vram[emu->gpu.cgb_vram_bank_no].mem[addr];
+    //else
+    //    return 0xFF;
 }
 
 uint16_t gb_gpu_vram_read16(struct gb_emu *emu, uint16_t addr, uint16_t low)
 {
     if (emu->gpu.mode != GB_GPU_MODE_VRAM) {
         uint16_t ret;
-        memcpy(&ret, emu->gpu.vram.mem + addr, sizeof(ret));
+        memcpy(&ret, emu->gpu.vram[emu->gpu.cgb_vram_bank_no].mem + addr, sizeof(ret));
         return ret;
     } else {
         return 0xFFFF;
@@ -442,22 +503,24 @@ uint16_t gb_gpu_vram_read16(struct gb_emu *emu, uint16_t addr, uint16_t low)
 
 void gb_gpu_vram_write8(struct gb_emu *emu, uint16_t addr, uint16_t low, uint8_t byte)
 {
-    if (emu->gpu.mode != GB_GPU_MODE_VRAM)
-        emu->gpu.vram.mem[addr] = byte;
+    //if (emu->gpu.mode != GB_GPU_MODE_VRAM)
+        emu->gpu.vram[emu->gpu.cgb_vram_bank_no].mem[addr] = byte;
+    //else
+    //    printf("Invalid VBANK write\n");
 }
 
 void gb_gpu_vram_write16(struct gb_emu *emu, uint16_t addr, uint16_t low, uint16_t word)
 {
     if (emu->gpu.mode != GB_GPU_MODE_VRAM)
-        memcpy(emu->gpu.vram.mem + addr, &word, sizeof(word));
+        memcpy(emu->gpu.vram[emu->gpu.cgb_vram_bank_no].mem + addr, &word, sizeof(word));
 }
 
 uint8_t gb_gpu_sprite_read8(struct gb_emu *emu, uint16_t addr, uint16_t low)
 {
-    if (emu->gpu.mode != GB_GPU_MODE_VRAM && emu->gpu.mode != GB_GPU_MODE_OAM)
+    //if (emu->gpu.mode != GB_GPU_MODE_VRAM && emu->gpu.mode != GB_GPU_MODE_OAM)
         return emu->gpu.oam.mem[addr];
-    else
-        return 0xFF;
+    //else
+    //    return 0xFF;
 }
 
 uint16_t gb_gpu_sprite_read16(struct gb_emu *emu, uint16_t addr, uint16_t low)
@@ -473,7 +536,7 @@ uint16_t gb_gpu_sprite_read16(struct gb_emu *emu, uint16_t addr, uint16_t low)
 
 void gb_gpu_sprite_write8(struct gb_emu *emu, uint16_t addr, uint16_t low, uint8_t byte)
 {
-    if (emu->gpu.mode != GB_GPU_MODE_VRAM && emu->gpu.mode != GB_GPU_MODE_OAM)
+    //if (emu->gpu.mode != GB_GPU_MODE_VRAM && emu->gpu.mode != GB_GPU_MODE_OAM)
         emu->gpu.oam.mem[addr] = byte;
 }
 

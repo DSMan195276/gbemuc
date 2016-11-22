@@ -9,6 +9,8 @@
 #include "gb/gpu.h"
 #include "gb/cpu.h"
 #include "gb/rom.h"
+#include "gb/io.h"
+#include "gb/cgb_themes.h"
 #include "debug.h"
 
 void gb_emu_rom_open(struct gb_emu *emu, const char *filename)
@@ -24,6 +26,11 @@ void gb_emu_rom_open(struct gb_emu *emu, const char *filename)
 
         printf("Sav file size: %zd\n", flen);
     }
+
+    if (emu->config.type != GB_EMU_CGB || emu->rom.cgb_flag == GB_CGB_NONE)
+        emu->gb_type = GB_EMU_DMG;
+    else
+        emu->gb_type = GB_EMU_CGB;
 
     cart_bitmap = gb_cart_type_bitmap[emu->rom.cart_type];
     if (cart_bitmap & GB_CART_FLAG(ROM)) {
@@ -74,22 +81,54 @@ void gb_emu_del_breakpoint(struct gb_emu *emu, int id)
 
 }
 
-void gb_emu_init(struct gb_emu *emu, struct gb_gpu_display *display)
+void gb_emu_init(struct gb_emu *emu)
 {
     memset(emu, 0, sizeof(*emu));
     gb_rom_init(&emu->rom);
-    gb_gpu_init(&emu->gpu, display);
+    gb_gpu_init(&emu->gpu);
 
     gb_sound_init(&emu->sound);    /* Set the audio format */
+}
+
+void gb_emu_reset(struct gb_emu *emu)
+{
+    gb_emu_io_reset(emu);
 
     emu->cpu.ime = 0;
 
-    emu->cpu.r.w[GB_REG_PC] = 0x0000;
+    emu->cpu.r.w[GB_REG_PC] = 0x0100;
+    emu->cpu.r.w[GB_REG_SP] = 0xFFFE;
+    emu->mmu.bios_flag = 1;
+
+    if (gb_emu_is_cgb(emu))
+        emu->cpu.r.b[GB_REG_A] = 0x11;
+    else
+        emu->cpu.r.b[GB_REG_A] = 0x01;
 }
 
 void gb_emu_set_display(struct gb_emu *emu, struct gb_gpu_display *display)
 {
+    union gb_gpu_color_u default_theme[4] = {
+        { .i_color = 0xFFFFFFFF },
+        { .i_color = 0xFFAAAAAA },
+        { .i_color = 0xFF555555 },
+        { .i_color = 0xFF000000 },
+    };
+
     emu->gpu.display = display;
+    if (!display)
+        return ;
+
+    if (cgb_find_theme(&display->dmg_theme, emu->rom.title, emu->rom.title_chksum)) {
+        printf("Using theme: 0x%02x\n", emu->rom.title_chksum);
+        //memcpy(&display->dmg_theme, cgb_themes[emu->rom.title_chksum], sizeof(cgb_themes[emu->rom.title_chksum]));
+    } else {
+        printf("Using default\n");
+        memcpy(display->dmg_theme.bg, default_theme, sizeof(display->dmg_theme.bg));
+        memcpy(display->dmg_theme.sprites[0], default_theme, sizeof(display->dmg_theme.sprites[0]));
+        memcpy(display->dmg_theme.sprites[1], default_theme, sizeof(display->dmg_theme.sprites[1]));
+    }
+
     gb_gpu_display_screen(emu, &emu->gpu);
 }
 

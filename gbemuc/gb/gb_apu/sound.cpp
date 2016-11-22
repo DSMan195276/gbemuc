@@ -36,7 +36,7 @@ extern "C" void gb_sound_clear(struct gb_sound *sound)
 
 extern "C" void gb_sound_reset(struct gb_sound *sound)
 {
-	Gb_Apu::mode_t gbmode = Gb_Apu::mode_dmg;
+	Gb_Apu::mode_t gbmode = Gb_Apu::mode_cgb;
 
 #if 0
 	if(gbEmulatorType == 4)

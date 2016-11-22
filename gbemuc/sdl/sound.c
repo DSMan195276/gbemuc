@@ -8,7 +8,7 @@
 #include "char_buf.h"
 #include "gb/sound.h"
 
-#define SDL_SAMPLE_BUF_SIZE (8192 * 2)
+#define SDL_SAMPLE_BUF_SIZE (8192 * 8)
 
 struct gb_sound_driver_sdl {
     struct gb_apu_sound sound;
@@ -23,8 +23,13 @@ struct gb_sound_driver_sdl {
 static void sdl_callback(void *udata, Uint8 *samples, int bytes)
 {
     struct gb_sound_driver_sdl *driver = udata;
+    size_t len;
 
-    char_buf_read(&driver->sample_buffer, samples, bytes);
+    len = char_buf_read(&driver->sample_buffer, samples, bytes);
+
+    if (len < bytes)
+        memset(samples + len, 0, bytes - len);
+
     return ;
 }
 
@@ -41,6 +46,12 @@ static void gb_sdl_sound_pause(struct gb_apu_sound *sound)
 static void gb_sdl_sound_play_buf(struct gb_apu_sound *sound, int16_t *buf, size_t bytes)
 {
     struct gb_sound_driver_sdl *driver = container_of(sound, struct gb_sound_driver_sdl, sound);
+
+    while (SDL_GetQueuedAudioSize(driver->dev) > bytes)
+        ;
+
+    SDL_QueueAudio(driver->dev, buf, bytes);
+    return ;
 
     SDL_LockAudioDevice(driver->dev);
 
@@ -65,8 +76,8 @@ struct gb_apu_sound *gb_sdl_sound_new(void)
     driver->spec.freq = 44100;
     driver->spec.format = AUDIO_S16SYS;
     driver->spec.channels = 2;    /* 1 = mono, 2 = stereo */
-    driver->spec.samples = 4096 / 2;
-    driver->spec.callback = sdl_callback;
+    driver->spec.samples = 2048 / 2;
+    driver->spec.callback = NULL; //sdl_callback;
     driver->spec.userdata = driver;
 
     driver->dev = 1;
@@ -77,6 +88,7 @@ struct gb_apu_sound *gb_sdl_sound_new(void)
     driver->sample_buffer.buffer = driver->sample_data;
     driver->sample_buffer.len = sizeof(driver->sample_data);
 
+    SDL_PauseAudio(false);
     return &driver->sound;
 }
 
