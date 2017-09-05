@@ -204,16 +204,10 @@ void gb_gpu_dma(struct gb_emu *emu, uint8_t dma_addr);
 void gb_gpu_update_key_line(struct gb_emu *emu);
 
 uint8_t gb_gpu_vram_read8(struct gb_emu *, uint16_t addr, uint16_t low);
-uint16_t gb_gpu_vram_read16(struct gb_emu *, uint16_t addr, uint16_t low);
-
 void gb_gpu_vram_write8(struct gb_emu *, uint16_t addr, uint16_t low, uint8_t byte);
-void gb_gpu_vram_write16(struct gb_emu *, uint16_t addr, uint16_t low, uint16_t word);
 
 uint8_t gb_gpu_sprite_read8(struct gb_emu *, uint16_t addr, uint16_t low);
-uint16_t gb_gpu_sprite_read16(struct gb_emu *, uint16_t addr, uint16_t low);
-
 void gb_gpu_sprite_write8(struct gb_emu *, uint16_t addr, uint16_t low, uint8_t byte);
-void gb_gpu_sprite_write16(struct gb_emu *, uint16_t addr, uint16_t low, uint16_t word);
 
 void gb_apu_end_sound_frame(struct gb_emu *emu);
 

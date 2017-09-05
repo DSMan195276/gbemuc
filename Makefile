@@ -63,19 +63,29 @@ $(dir $(1)).$(basename $(notdir $(1))).d: $(2)
 endif
 endef
 
+subdir_level := 0
+
 # Traverse into tree
 define subdir_inc
 objtree := $$(objtree)/$(1)
 srctree := $$(srctree)/$(1)
 
-cflags-sav := $$(cflags-y)
+subdir_level_prev := $$(subdir_level)
+subdir_level := $$(shell expr $$(subdir_level) + 1)
+
+cflags-$$(subdir_level) := $$(cflags-$$(subdir_level_prev))
 
 subdir-y :=
 objs-y :=
 clean-list-y :=
+cflags-y :=
 
 _tmp := $$(shell mkdir -p $$(objtree))
 include $$(srctree)/Makefile
+
+cflags-$$(subdir_level) += $$(cflags-y)
+
+cflags-y := $$(cflags-$$(subdir_level))
 
 CLEAN_LIST += $$(patsubst %,$$(objtree)/%,$$(objs-y)) $$(patsubst %,$$(objtree)/%,$$(clean-list-y)) $$(objtree).o
 DEPS += $$(patsubst %,$$(objtree)/%,$$(objs-y))
@@ -88,7 +98,10 @@ $$(eval $$(call create_link_rule,$$(objtree).o,$$(objs)))
 
 $$(foreach subdir,$$(subdir-y),$$(eval $$(call subdir_inc,$$(subdir))))
 
-cflags-y := $$(cflags-sav)
+subdir_level_prev := $$(subdir_level);
+subdir_level := $$(shell expr $$(subdir_level) - 1)
+
+cflags-$(subdir_level) := $$(cflags-$$(subdir_level_prev))
 srctree := $$(patsubst %/$(1),%,$$(srctree))
 objtree := $$(patsubst %/$(1),%,$$(objtree))
 endef

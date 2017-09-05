@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <string.h>
+#include <stdarg.h>
 
 #include "gb/cpu.h"
 #include "gb/gpu.h"
@@ -96,16 +97,11 @@ static void render_background_tile(struct gb_emu *emu, struct gb_gpu *gpu, union
     if (!gb_emu_is_cgb(emu)) {
         pal_col = (gpu->back_palette >> (c * 2)) & 0x03;
         line[y_pix] = emu->gpu.display->dmg_theme.bg[pal_col];
-        //line[y_pix] = gb_colors[gpu->display->palette_selection][pal_col];
     } else {
         uint8_t low = gpu->cgb_bkgd_palette[cgb_palette * 8 + c * 2];
         uint8_t high = gpu->cgb_bkgd_palette[cgb_palette * 8 + c * 2 + 1];
         uint16_t color = low | (high << 8);
         line[y_pix].i_color = make_cgb_argb_color(color, emu->config.cgb_real_colors);
-
-        /*
-        if (priority)
-            line[y_pix].i_color |= 0xFFFFFF00; */
     }
 }
 
@@ -134,11 +130,7 @@ static void render_background(struct gb_emu *emu, struct gb_gpu *gpu)
 
         x_pix = (i + gpu->scroll_x) % (8 * 32);
 
-        /*
-        if ((i % 8) == 0)
-            line[i].i_color = 0xFFFF0000;
-        else */
-            render_background_tile(emu, gpu, line, bkgd_tiles, bkgd_attributes, x_pix, i, tile_offset_byte);
+        render_background_tile(emu, gpu, line, bkgd_tiles, bkgd_attributes, x_pix, i, tile_offset_byte);
     }
 }
 
@@ -173,11 +165,7 @@ static void render_window(struct gb_emu *emu, struct gb_gpu *gpu)
         if (x_pix < 0 || x_pix >= GB_SCREEN_WIDTH)
             continue;
 
-        /*
-        if ((i % 8) == 0)
-            line[i].i_color = 0xFF00FF00;
-        else */
-            render_background_tile(emu, gpu, line, bkgd_tiles, bkgd_attributes, x_pix, i, tile_offset_byte);
+        render_background_tile(emu, gpu, line, bkgd_tiles, bkgd_attributes, x_pix, i, tile_offset_byte);
     }
 }
 
@@ -244,7 +232,6 @@ static void render_single_sprite(struct gb_emu *emu, struct gb_gpu *gpu, union g
         if (!gb_emu_is_cgb(emu)) {
             col = (palette >> (sel * 2)) & 0x03;
             line[x + x_loc] = emu->gpu.display->dmg_theme.sprites[pal_num][col];
-            //line[x + x_loc] = gb_colors[gpu->display->palette_selection][col];
         } else {
             uint8_t low = gpu->cgb_sprite_palette[cgb_palette * 8 + sel * 2];
             uint8_t high = gpu->cgb_sprite_palette[cgb_palette * 8 + sel * 2 + 1];
@@ -384,6 +371,7 @@ static void gb_gpu_inc_line(struct gb_emu *emu)
         emu->cpu.int_flags |= (1 << GB_INT_LCD_STAT);
 }
 
+
 void gb_emu_gpu_tick(struct gb_emu *emu, int cycles)
 {
     struct gb_gpu *gpu = &emu->gpu;
@@ -490,29 +478,12 @@ uint8_t gb_gpu_vram_read8(struct gb_emu *emu, uint16_t addr, uint16_t low)
     //    return 0xFF;
 }
 
-uint16_t gb_gpu_vram_read16(struct gb_emu *emu, uint16_t addr, uint16_t low)
-{
-    if (emu->gpu.mode != GB_GPU_MODE_VRAM) {
-        uint16_t ret;
-        memcpy(&ret, emu->gpu.vram[emu->gpu.cgb_vram_bank_no].mem + addr, sizeof(ret));
-        return ret;
-    } else {
-        return 0xFFFF;
-    }
-}
-
 void gb_gpu_vram_write8(struct gb_emu *emu, uint16_t addr, uint16_t low, uint8_t byte)
 {
     //if (emu->gpu.mode != GB_GPU_MODE_VRAM)
         emu->gpu.vram[emu->gpu.cgb_vram_bank_no].mem[addr] = byte;
     //else
     //    printf("Invalid VBANK write\n");
-}
-
-void gb_gpu_vram_write16(struct gb_emu *emu, uint16_t addr, uint16_t low, uint16_t word)
-{
-    if (emu->gpu.mode != GB_GPU_MODE_VRAM)
-        memcpy(emu->gpu.vram[emu->gpu.cgb_vram_bank_no].mem + addr, &word, sizeof(word));
 }
 
 uint8_t gb_gpu_sprite_read8(struct gb_emu *emu, uint16_t addr, uint16_t low)
@@ -523,26 +494,9 @@ uint8_t gb_gpu_sprite_read8(struct gb_emu *emu, uint16_t addr, uint16_t low)
     //    return 0xFF;
 }
 
-uint16_t gb_gpu_sprite_read16(struct gb_emu *emu, uint16_t addr, uint16_t low)
-{
-    if (emu->gpu.mode != GB_GPU_MODE_VRAM && emu->gpu.mode != GB_GPU_MODE_OAM) {
-        uint16_t ret;
-        memcpy(&ret, emu->gpu.oam.mem + addr, sizeof(ret));
-        return ret;
-    } else {
-        return 0xFFFF;
-    }
-}
-
 void gb_gpu_sprite_write8(struct gb_emu *emu, uint16_t addr, uint16_t low, uint8_t byte)
 {
     //if (emu->gpu.mode != GB_GPU_MODE_VRAM && emu->gpu.mode != GB_GPU_MODE_OAM)
         emu->gpu.oam.mem[addr] = byte;
-}
-
-void gb_gpu_sprite_write16(struct gb_emu *emu, uint16_t addr, uint16_t low, uint16_t word)
-{
-    if (emu->gpu.mode != GB_GPU_MODE_VRAM && emu->gpu.mode != GB_GPU_MODE_OAM)
-        memcpy(emu->gpu.oam.mem + addr, &word, sizeof(word));
 }
 

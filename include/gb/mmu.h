@@ -12,6 +12,8 @@ struct gb_mmu_entry {
 
     uint8_t (*read8) (struct gb_emu *, uint16_t addr, uint16_t low);
     void (*write8) (struct gb_emu *, uint16_t addr, uint16_t low, uint8_t val);
+
+    int (*get_bank) (struct gb_emu *, uint16_t addr);
 };
 
 extern struct gb_mmu_entry gb_mbc0_mmu_entry, gb_mbc0_eram_mmu_entry;
@@ -100,5 +102,7 @@ void gb_emu_write8(struct gb_emu *, uint16_t addr, uint8_t byte);
 
 uint16_t gb_emu_read16(struct gb_emu *, uint16_t addr);
 void gb_emu_write16(struct gb_emu *, uint16_t addr, uint16_t word);
+
+int gb_emu_addr_is_rom(struct gb_emu *emu, uint16_t addr);
 
 #endif

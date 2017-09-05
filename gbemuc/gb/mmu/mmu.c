@@ -94,37 +94,37 @@ enum {
 static struct gb_mmu_entry mmu_entries[] = {
     [GB_MMU_VRAM] =
         { 0x8000, 0x9FFF,
-            gb_gpu_vram_read8, gb_gpu_vram_write8 },
+            gb_gpu_vram_read8, gb_gpu_vram_write8, NULL },
 
     [GB_MMU_WRAM_BANK0] =
         { 0xC000, 0xCFFF,
-            wram_bank0_read8, wram_bank0_write8 },
+            wram_bank0_read8, wram_bank0_write8, NULL },
     [GB_MMU_WRAM_BANK1] =
         { 0xD000, 0xDFFF,
-            wram_bank1_read8, wram_bank1_write8 },
+            wram_bank1_read8, wram_bank1_write8, NULL },
 
     [GB_MMU_WRAM_ECHO_BANK0] =
         { 0xE000, 0xEFFF,
-            wram_bank0_read8, wram_bank0_write8 },
+            wram_bank0_read8, wram_bank0_write8, NULL },
     [GB_MMU_WRAM_ECHO_BANK1] =
         { 0xF000, 0xFDFF,
-            wram_bank1_read8, wram_bank1_write8 },
+            wram_bank1_read8, wram_bank1_write8, NULL },
 
     [GB_MMU_SPRITE] =
         { 0xFE00, 0xFE9F,
-            gb_gpu_sprite_read8, gb_gpu_sprite_write8 },
+            gb_gpu_sprite_read8, gb_gpu_sprite_write8, NULL },
     [GB_MMU_EMPTY] =
         { 0xFEA0, 0xFEFF,
-            zero_read8, zero_write8 },
+            zero_read8, zero_write8, NULL },
     [GB_MMU_IO] =
         { 0xFF00, 0xFF7F,
-            gb_emu_io_read8, gb_emu_io_write8 },
+            gb_emu_io_read8, gb_emu_io_write8, NULL },
     [GB_MMU_ZRAM] =
         { 0xFF80, 0xFFFE,
-            zram_read8, zram_write8 },
+            zram_read8, zram_write8, NULL },
     [GB_MMU_INT] =
         { 0xFFFF, 0xFFFF,
-            gb_cpu_int_read8, gb_cpu_int_write8 },
+            gb_cpu_int_read8, gb_cpu_int_write8, NULL },
 };
 
 static inline struct gb_mmu_entry *get_mmu_entry(struct gb_emu *emu, uint16_t addr)
@@ -251,4 +251,9 @@ uint16_t gb_emu_next_pc16(struct gb_emu *emu)
     return gb_emu_read16(emu, addr);
 }
 
+int gb_emu_addr_is_rom(struct gb_emu *emu, uint16_t addr)
+{
+    uint16_t a = addr >> 12;
+    return a < 8;
+}
 

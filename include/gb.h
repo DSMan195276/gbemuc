@@ -23,14 +23,19 @@ enum gb_emu_type {
     GB_EMU_CGB,
 };
 
+enum gb_cpu_type {
+    GB_CPU_INTERPRETER,
+    GB_CPU_JIT,
+};
+
 struct gb_config {
     enum gb_emu_type type;
     int cgb_real_colors;
 };
 
 struct gb_emu {
-    struct gb_config config;
     struct gb_cpu cpu;
+    struct gb_config config;
     struct gb_mmu mmu;
     struct gb_gpu gpu;
     struct gb_timer timer;
@@ -67,7 +72,7 @@ void gb_emu_clear(struct gb_emu *emu);
 void gb_emu_add_breakpoint(struct gb_emu *emu, uint16_t breakpoint);
 void gb_emu_del_breakpoint(struct gb_emu *emu, int id);
 
-enum gb_emu_stop gb_run(struct gb_emu *emu);
+enum gb_emu_stop gb_run(struct gb_emu *emu, enum gb_cpu_type);
 
 void gb_emu_reset(struct gb_emu *emu);
 

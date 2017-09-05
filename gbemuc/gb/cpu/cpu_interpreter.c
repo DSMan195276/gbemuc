@@ -3,8 +3,10 @@
 
 #include <stdint.h>
 #include <time.h>
+#include <signal.h>
 
 #include "debug.h"
+#include "gb/disasm.h"
 #include "gb_internal.h"
 #include "gb/cpu.h"
 
@@ -685,9 +687,6 @@ static uint8_t sbc(uint8_t val1, uint8_t val2, uint8_t *flags, int carry)
     uint8_t result;
 
     *flags = GB_FLAG_SUB;
-
-    //if ((val1 & 0xF) - (val2 & 0xF) - carry > 0xF)
-        //*flags |= GB_FLAG_HCARRY;
 
     result = (val1 - val2 - carry) & 0xFF;
 
@@ -1874,11 +1873,11 @@ int gb_emu_run_inst(struct gb_emu *emu, uint8_t opcode)
     return cycles;
 }
 
-static int gb_emu_check_interrupt(struct gb_emu *emu)
+int gb_emu_check_interrupt(struct gb_emu *emu)
 {
-    int cycles = 0;
     uint8_t int_check = emu->cpu.int_enabled & emu->cpu.int_flags;
     int i;
+    int ret = 0;
 
     /* Lower number interrupts have priority */
     for (i = 0; i < GB_INT_TOTAL; i++) {
@@ -1889,30 +1888,22 @@ static int gb_emu_check_interrupt(struct gb_emu *emu)
             if (!emu->cpu.ime)
                 continue;
 
-            cycles += push_val(emu, emu->cpu.r.w[GB_REG_PC]);
+            push_val(emu, emu->cpu.r.w[GB_REG_PC]);
 
             emu->cpu.r.w[GB_REG_PC] = GB_INT_BASE_ADDR + i * 0x8;
             emu->cpu.ime = 0;
 
             emu->cpu.int_flags &= ~(1 << i); /* Reset this interrupt's bit, since we're servicing it */
+            ret = 1;
             break;
         }
     }
 
-    return cycles;
+    return ret;
 }
 
-int gb_emu_cpu_run_next_inst(struct gb_emu *emu)
+int gb_emu_hdma_check(struct gb_emu *emu)
 {
-    int cycles = 0;
-
-    if (emu->cpu.halted) {
-        /* When we're halted, the clock still ticks */
-        gb_emu_clock_tick(emu);
-        cycles += 4;
-        goto inst_end;
-    }
-
     if (emu->mmu.hdma_active && emu->gpu.mode == GB_GPU_MODE_HBLANK) {
         int i;
 
@@ -1929,13 +1920,56 @@ int gb_emu_cpu_run_next_inst(struct gb_emu *emu)
             emu->mmu.hdma_active = 0;
         }
 
-        while (emu->gpu.mode == GB_GPU_MODE_HBLANK) {
-            cycles += 4;
+        while (emu->gpu.mode == GB_GPU_MODE_HBLANK)
             gb_emu_clock_tick(emu);
-        }
 
-        return cycles;
+        return 1;
     }
+
+    return 0;
+}
+
+void gb_emu_cpu_next_inst_hook(struct gb_emu *emu)
+{
+    if (emu->hook_flag) {
+        uint8_t bytes[3];
+
+        bytes[0] = gb_emu_read8(emu, emu->cpu.r.w[GB_REG_PC]);
+        bytes[1] = gb_emu_read8(emu, emu->cpu.r.w[GB_REG_PC] + 1);
+        bytes[2] = gb_emu_read8(emu, emu->cpu.r.w[GB_REG_PC] + 2);
+
+        if (emu->cpu.hooks && emu->cpu.hooks->next_inst)
+            (emu->cpu.hooks->next_inst) (emu->cpu.hooks, emu, bytes);
+    }
+}
+
+void gb_emu_cpu_breakpoint_check(struct gb_emu *emu)
+{
+    if (emu->break_flag) {
+        int k;
+        uint16_t pc = emu->cpu.r.w[GB_REG_PC];
+        for (k = 0; k < emu->breakpoint_count; k++) {
+            if (pc == emu->breakpoints[k]) {
+                emu->stop_emu = 1;
+                emu->reason = GB_EMU_BREAK;
+            }
+        }
+   }
+}
+
+int gb_emu_cpu_run_next_inst(struct gb_emu *emu)
+{
+    int cycles = 0;
+
+    if (emu->cpu.halted) {
+        /* When we're halted, the clock still ticks */
+        gb_emu_clock_tick(emu);
+        cycles += 4;
+        goto inst_end;
+    }
+
+    if (gb_emu_hdma_check(emu))
+        return cycles;
 
     if (emu->hook_flag) {
         uint8_t bytes[3];
@@ -1947,6 +1981,7 @@ int gb_emu_cpu_run_next_inst(struct gb_emu *emu)
         if (emu->cpu.hooks && emu->cpu.hooks->next_inst)
             (emu->cpu.hooks->next_inst) (emu->cpu.hooks, emu, bytes);
     }
+
 
     gb_emu_clock_tick(emu);
     uint8_t opcode = gb_emu_next_pc8(emu);
@@ -1960,7 +1995,7 @@ int gb_emu_cpu_run_next_inst(struct gb_emu *emu)
 
 inst_end:
 
-    cycles += gb_emu_check_interrupt(emu);
+    gb_emu_check_interrupt(emu);
 
     if (emu->break_flag) {
         int k;
@@ -1976,37 +2011,16 @@ inst_end:
     return cycles;
 }
 
-enum gb_emu_stop gb_run(struct gb_emu *emu)
+void gb_emu_run_interpreter(struct gb_emu *emu)
 {
     int i;
-    uint64_t cycles = 0;
-
-    emu->stop_emu = 0;
-
-    if (emu->sound.driver) {
-        gb_sound_start(&emu->sound);
-        gb_sound_set_sound_rate(&emu->sound, GB_APU_SAMPLE_RATE);
-
-        (emu->sound.driver->play) (emu->sound.driver);
-    }
-
     while (!emu->stop_emu) {
-        cycles = 0;
-
         for (i = 0; i < 20000; i++) {
-            cycles += gb_emu_cpu_run_next_inst(emu);
+            gb_emu_cpu_run_next_inst(emu);
             if (emu->stop_emu)
                 break;
         }
     }
-
-    if (emu->sound.driver) {
-        (emu->sound.driver->pause) (emu->sound.driver);
-
-        gb_sound_finish(&emu->sound);
-    }
-
-    return emu->reason;
 }
 
 uint8_t gb_cpu_int_read8(struct gb_emu *emu, uint16_t addr, uint16_t low)

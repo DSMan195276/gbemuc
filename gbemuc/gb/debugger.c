@@ -56,36 +56,18 @@ static void debugger_breakpoint_off(int argc, char **argv, va_list args)
     emu->break_flag = 0;
 }
 
-static struct gb_emu *signal_emu;
-
-static void debugger_run_sigint(int signum)
-{
-    signal_emu->stop_emu = 1;
-    signal_emu->reason = GB_EMU_STOP;
-}
-
 static void debugger_run(int argc, char **argv, va_list args)
 {
     struct gb_debugger *__unused debugger = va_arg(args, struct gb_debugger *);
     struct gb_emu *emu = va_arg(args, struct gb_emu *);
-    struct sigaction new_act, old_act;
     enum gb_emu_stop result;
 
-    memset(&new_act, 0, sizeof(new_act));
-    new_act.sa_handler = debugger_run_sigint;
-
-    sigaction(SIGINT, &new_act, &old_act);
-
-    signal_emu = emu;
-
-    result = gb_run(emu);
+    result = gb_run(emu, GB_CPU_INTERPRETER);
 
     if (result == GB_EMU_STOP)
         printf("PC: 0x%04x\n", emu->cpu.r.w[GB_REG_PC]);
     else
         printf("BREAK: 0x%04x\n", emu->cpu.r.w[GB_REG_PC]);
-
-    sigaction(SIGINT, &old_act, NULL);
 }
 
 static void debugger_step(int argc, char **argv, va_list args)

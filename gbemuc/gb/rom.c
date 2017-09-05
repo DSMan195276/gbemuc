@@ -116,7 +116,7 @@ void gb_rom_open(struct gb_rom *rom, const char *filename)
 
     /* Read header information */
     memcpy(&rom->ninten_logo,      rom->data + 0x104, 48);
-    memcpy(&rom->title,            rom->data + 0x134, 15);
+    memcpy(&rom->title,            rom->data + 0x134, 16);
     memcpy(&rom->man_code,         rom->data + 0x13F,  4);
     memcpy(&rom->cgb_flag,         rom->data + 0x143,  1);
     memcpy(&rom->new_license_code, rom->data + 0x144,  2);

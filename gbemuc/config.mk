@@ -8,10 +8,16 @@ GBEMUC_VERSION_N := $(GBEMUC_VERSION).$(GBEMUC_SUBLEVEL).$(GBEMUC_PATCH)
 
 GBEMUC_LIBFLAGS := -pthread -lSDL2
 GBEMUC_CFLAGS  += -I'./include'                           \
+				  -Wall -Wextra -Wno-unused-parameter     \
                    -DGBEMUC_VERSION=$(GBEMUC_VERSION)     \
       			 -DGBEMUC_SUBLEVEL=$(GBEMUC_SUBLEVEL)     \
       			 -DGBEMUC_PATCH=$(GBEMUC_PATCH)           \
       			 -DGBEMUC_VERSION_N="$(GBEMUC_VERSION_N)"
+
+ifeq ($(CONFIG_JIT),y)
+	GBEMUC_LIBFLAGS += -ljit
+	GBEMUC_CFLAGS += -DCONFIG_JIT
+endif
 
 GBEMUC_OBJS += ./gbemuc.o
 

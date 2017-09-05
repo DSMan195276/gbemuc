@@ -48,4 +48,11 @@ void dump_mem(const void *buf, size_t len, uint32_t base_addr);
 # define __unused
 #endif
 
+/* This const is supplied by the Makefile
+ * We define it here just to silence warnings from autocomplete or similar
+ * features */
+#ifndef GBEMUC_VERSION
+# define GBEMUC_VERSION "0.0.0"
+#endif
+
 #endif

@@ -15,23 +15,7 @@ struct gb_sound_driver_sdl {
 
     SDL_AudioSpec spec;
     SDL_AudioDeviceID dev;
-
-    struct char_buf sample_buffer;
-    char sample_data[SDL_SAMPLE_BUF_SIZE];
 };
-
-static void sdl_callback(void *udata, Uint8 *samples, int bytes)
-{
-    struct gb_sound_driver_sdl *driver = udata;
-    size_t len;
-
-    len = char_buf_read(&driver->sample_buffer, samples, bytes);
-
-    if (len < bytes)
-        memset(samples + len, 0, bytes - len);
-
-    return ;
-}
 
 static void gb_sdl_sound_play(struct gb_apu_sound *sound)
 {
@@ -48,17 +32,14 @@ static void gb_sdl_sound_play_buf(struct gb_apu_sound *sound, int16_t *buf, size
     struct gb_sound_driver_sdl *driver = container_of(sound, struct gb_sound_driver_sdl, sound);
 
     while (SDL_GetQueuedAudioSize(driver->dev) > bytes)
-        ;
+        SDL_Delay(5);
 
-    SDL_QueueAudio(driver->dev, buf, bytes);
-    return ;
+    char new_buf[bytes];
 
-    SDL_LockAudioDevice(driver->dev);
+    memset(new_buf, 0, bytes);
 
-    char_buf_write(&driver->sample_buffer, buf, bytes);
-
-    SDL_UnlockAudioDevice(driver->dev);
-
+    SDL_MixAudio((uint8_t *)new_buf, (uint8_t *)buf, bytes, 128 / 32);
+    SDL_QueueAudio(driver->dev, new_buf, bytes);
     return ;
 }
 
@@ -77,16 +58,13 @@ struct gb_apu_sound *gb_sdl_sound_new(void)
     driver->spec.format = AUDIO_S16SYS;
     driver->spec.channels = 2;    /* 1 = mono, 2 = stereo */
     driver->spec.samples = 2048 / 2;
-    driver->spec.callback = NULL; //sdl_callback;
+    driver->spec.callback = NULL;
     driver->spec.userdata = driver;
 
     driver->dev = 1;
 
     ret = SDL_OpenAudio(&driver->spec, NULL);
     printf("SDL_OpenAudio: %d\n", ret);
-
-    driver->sample_buffer.buffer = driver->sample_data;
-    driver->sample_buffer.len = sizeof(driver->sample_data);
 
     SDL_PauseAudio(false);
     return &driver->sound;

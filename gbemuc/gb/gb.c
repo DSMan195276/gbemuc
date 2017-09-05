@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <signal.h>
 
 #include "gb.h"
 #include "gb/gpu.h"
@@ -12,6 +13,7 @@
 #include "gb/io.h"
 #include "gb/cgb_themes.h"
 #include "debug.h"
+#include "cpu/cpu_internal.h"
 
 void gb_emu_rom_open(struct gb_emu *emu, const char *filename)
 {
@@ -27,7 +29,7 @@ void gb_emu_rom_open(struct gb_emu *emu, const char *filename)
         printf("Sav file size: %zd\n", flen);
     }
 
-    if (emu->config.type != GB_EMU_CGB || emu->rom.cgb_flag == GB_CGB_NONE)
+    if (emu->config.type != GB_EMU_CGB || !(emu->rom.cgb_flag & (1 << 7)))
         emu->gb_type = GB_EMU_DMG;
     else
         emu->gb_type = GB_EMU_CGB;
@@ -121,9 +123,9 @@ void gb_emu_set_display(struct gb_emu *emu, struct gb_gpu_display *display)
 
     if (cgb_find_theme(&display->dmg_theme, emu->rom.title, emu->rom.title_chksum)) {
         printf("Using theme: 0x%02x\n", emu->rom.title_chksum);
-        //memcpy(&display->dmg_theme, cgb_themes[emu->rom.title_chksum], sizeof(cgb_themes[emu->rom.title_chksum]));
     } else {
         printf("Using default\n");
+
         memcpy(display->dmg_theme.bg, default_theme, sizeof(display->dmg_theme.bg));
         memcpy(display->dmg_theme.sprites[0], default_theme, sizeof(display->dmg_theme.sprites[0]));
         memcpy(display->dmg_theme.sprites[1], default_theme, sizeof(display->dmg_theme.sprites[1]));
@@ -162,5 +164,54 @@ void gb_emu_clear(struct gb_emu *emu)
     gb_sound_clear(&emu->sound);
 
     free(emu->breakpoints);
+}
+
+static struct gb_emu *signal_emu;
+
+static void debugger_run_sigint(int signum)
+{
+    signal_emu->stop_emu = 1;
+    signal_emu->reason = GB_EMU_STOP;
+}
+
+enum gb_emu_stop gb_run(struct gb_emu *emu, enum gb_cpu_type cpu_type)
+{
+    struct sigaction new_act, old_act;
+
+    emu->stop_emu = 0;
+
+    if (emu->sound.driver) {
+        gb_sound_start(&emu->sound);
+        gb_sound_set_sound_rate(&emu->sound, GB_APU_SAMPLE_RATE);
+
+        (emu->sound.driver->play) (emu->sound.driver);
+    }
+
+    memset(&new_act, 0, sizeof(new_act));
+    new_act.sa_handler = debugger_run_sigint;
+
+    sigaction(SIGINT, &new_act, &old_act);
+
+    signal_emu = emu;
+
+    switch (cpu_type) {
+    case GB_CPU_INTERPRETER:
+        gb_emu_run_interpreter(emu);
+        break;
+
+    case GB_CPU_JIT:
+        gb_emu_run_jit(emu);
+        break;
+    }
+
+    sigaction(SIGINT, &old_act, NULL);
+
+    if (emu->sound.driver) {
+        (emu->sound.driver->pause) (emu->sound.driver);
+
+        gb_sound_finish(&emu->sound);
+    }
+
+    return emu->reason;
 }
 

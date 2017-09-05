@@ -2,13 +2,13 @@
 CC      ?= cc
 CXX     ?= c++
 
-CFLAGS  += -Wall -g -pg -std=c99 -O2 \
+CFLAGS  += -Wall -g -std=c99 -O2 \
 		   -Wno-unused-result
-CXXFLAGS ?= -g -O2 -pg
+CXXFLAGS ?= -g -O2
 
 CPPFLAGS ?= -D_GNU_SOURCE
 
-LDFLAGS ?= -lm -pg
+LDFLAGS ?= -lm
 LEX     ?= flex
 LFLAGS  ?=
 YACC    ?= bison
@@ -28,4 +28,8 @@ DOCDIR  := $(PREFIX)/share/doc/$(EXE)
 V ?= n
 
 CONFIG_DEBUG ?= y
+
+# if 'y', then the jit cpu core will be included
+# Requires libjit
+CONFIG_JIT ?= y
 

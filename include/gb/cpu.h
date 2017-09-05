@@ -30,10 +30,17 @@ enum {
 };
 
 enum {
-    GB_FLAG_ZERO   = 0x80,
-    GB_FLAG_SUB    = 0x40,
-    GB_FLAG_HCARRY = 0x20,
-    GB_FLAG_CARRY  = 0x10
+    GB_FLAG_SHIFT_ZERO   = 7,
+    GB_FLAG_SHIFT_SUB    = 6,
+    GB_FLAG_SHIFT_HCARRY = 5,
+    GB_FLAG_SHIFT_CARRY  = 4,
+};
+
+enum {
+    GB_FLAG_ZERO   = 1 << GB_FLAG_SHIFT_ZERO,
+    GB_FLAG_SUB    = 1 << GB_FLAG_SHIFT_SUB,
+    GB_FLAG_HCARRY = 1 << GB_FLAG_SHIFT_HCARRY,
+    GB_FLAG_CARRY  = 1 << GB_FLAG_SHIFT_CARRY,
 };
 
 struct gb_emu;
@@ -72,19 +79,20 @@ struct gb_cpu {
 
     int m, t;
 
-    unsigned int halted :1;
-    unsigned int stopped :1;
-    unsigned int ime :1; /* Interrupt master enable */
+    /* Note, the JIT relies on these flags being uint8_t */
+    uint8_t halted;
+    uint8_t stopped;
+    uint8_t ime; /* Interrupt master enable */
 
     /* These are used for the delay required by the DI and EI instructions.
      * The CPU counts down the 'int_count' and then sets 'int_enabled' equal to
-     * 'next_int_enabled' when 'int_count' hits zero.
+     * 'next_ime' when 'int_count' hits zero.
      * 'int_count' is decremented at the end of running an instruction. */
-    unsigned int next_ime:1;
-    unsigned int int_count :2;
+    uint8_t next_ime;
+    uint8_t int_count;
 
-    unsigned int double_speed :1;
-    unsigned int do_speed_switch :1;
+    uint8_t double_speed;
+    uint8_t do_speed_switch;
 
     uint8_t int_enabled; /* Bits corespond to enabled interrupts */
     uint8_t int_flags; /* Bits correspond to what interrupts have been triggered */
@@ -95,9 +103,6 @@ struct gb_cpu {
 struct gb_emu;
 
 uint8_t gb_cpu_int_read8(struct gb_emu *, uint16_t addr, uint16_t low);
-uint16_t gb_cpu_int_read16(struct gb_emu *, uint16_t addr, uint16_t low);
-
 void gb_cpu_int_write8(struct gb_emu *, uint16_t addr, uint16_t low, uint8_t byte);
-void gb_cpu_int_write16(struct gb_emu *, uint16_t addr, uint16_t low, uint16_t word);
 
 #endif

@@ -143,7 +143,14 @@ struct gb_gpu_display *gb_sdl_display_new(SDL_Window *window)
     disp->win = window;
     disp->dest_rend = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 
+    printf("Window: %p\n", window);
+    printf("Renderer: %p\n", disp->dest_rend);
+    printf("Error: %s\n", SDL_GetError());
+
     disp->texture = SDL_CreateTexture(disp->dest_rend, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, GB_SCREEN_WIDTH, GB_SCREEN_HEIGHT);
+
+    printf("Texture: %p\n", disp->texture);
+    printf("Error: %s\n", SDL_GetError());
 
     disp->last_tick = 0;
 

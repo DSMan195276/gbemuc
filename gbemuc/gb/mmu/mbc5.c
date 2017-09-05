@@ -25,7 +25,10 @@ static uint8_t mbc5_read8(struct gb_emu *emu, uint16_t addr, uint16_t low)
         if (addr >= 0x4000) {
             bank_no = emu->mmu.mbc5.rom_bank;
             data_offset &= 0x3FFF;
+
             data_offset += bank_no * 0x4000;
+
+            data_offset %= gb_rom_size[emu->rom.rom_size] * 1024;
         }
 
         return emu->rom.data[data_offset];
@@ -73,11 +76,28 @@ static void mbc5_eram_write8(struct gb_emu *emu, uint16_t addr, uint16_t low, ui
         emu->mmu.eram[emu->mmu.mbc5.ram_bank][addr] = val;
 }
 
+static int mbc5_get_bank(struct gb_emu *emu, uint16_t addr)
+{
+    if (addr >= 0x4000)
+        return emu->mmu.mbc5.rom_bank;
+
+    return 0;
+}
+
+static int mbc5_eram_get_bank(struct gb_emu *emu, uint16_t addr)
+{
+    if (emu->mmu.mbc5.ram_bank_enable == 0x0A)
+        return emu->mmu.mbc5.ram_bank;
+
+    return 0;
+}
+
 struct gb_mmu_entry gb_mbc5_mmu_entry = {
     .low = 0x0000,
     .high = 0x7FFF,
     .read8 = mbc5_read8,
     .write8 = mbc5_write8,
+    .get_bank = mbc5_get_bank,
 };
 
 struct gb_mmu_entry gb_mbc5_eram_mmu_entry = {
@@ -85,5 +105,6 @@ struct gb_mmu_entry gb_mbc5_eram_mmu_entry = {
     .high = 0xBFFF,
     .read8 = mbc5_eram_read8,
     .write8 = mbc5_eram_write8,
+    .get_bank = mbc5_eram_get_bank,
 };
 

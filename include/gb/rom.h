@@ -10,7 +10,7 @@
  * when the ROM is opened. */
 struct gb_rom {
     char ninten_logo[48];
-    char title[15];
+    char title[16];
     char man_code[4];
     uint8_t cgb_flag;
     uint8_t title_chksum;

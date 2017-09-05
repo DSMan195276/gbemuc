@@ -91,11 +91,28 @@ static void mbc1_eram_write8(struct gb_emu *emu, uint16_t addr, uint16_t low, ui
         emu->mmu.eram[0][addr] = val;
 }
 
+static int mbc1_get_bank(struct gb_emu *emu, uint16_t addr)
+{
+    if (addr >= 0x4000)
+        return bank_number(emu);
+
+    return 0;
+}
+
+static int mbc1_eram_get_bank(struct gb_emu *emu, uint16_t addr)
+{
+    if (emu->mmu.mbc1.rom_ram_mode)
+        return emu->mmu.mbc1.ram_rom_bank_upper;
+    else
+        return 0;
+}
+
 struct gb_mmu_entry gb_mbc1_mmu_entry = {
     .low = 0x0000,
     .high = 0x7FFF,
     .read8 = mbc1_read8,
     .write8 = mbc1_write8,
+    .get_bank = mbc1_get_bank,
 };
 
 struct gb_mmu_entry gb_mbc1_eram_mmu_entry = {
@@ -103,5 +120,6 @@ struct gb_mmu_entry gb_mbc1_eram_mmu_entry = {
     .high = 0xBFFF,
     .read8 = mbc1_eram_read8,
     .write8 = mbc1_eram_write8,
+    .get_bank = mbc1_eram_get_bank,
 };
 

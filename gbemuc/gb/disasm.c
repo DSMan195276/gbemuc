@@ -8,15 +8,6 @@
 #include "gb.h"
 #include "gb/disasm.h"
 
-struct opcode_format {
-    const char *format;
-    enum {
-        OPCODE_NONE,
-        OPCODE_16BIT,
-        OPCODE_8BIT,
-    } type;
-};
-
 #define OP_FORM_NONE(form) \
     { .format = form, .type = OPCODE_NONE }
 
@@ -26,7 +17,7 @@ struct opcode_format {
 #define OP_FORM_16(form) \
     { .format = form, .type = OPCODE_16BIT }
 
-static struct opcode_format opcode_decode_format_str[256] = {
+struct opcode_format opcode_decode_format_str[256] = {
     [0x00] =
     OP_FORM_NONE("NOP"),
     OP_FORM_16  ("LD BC, 0x%04x"),
