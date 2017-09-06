@@ -23,6 +23,9 @@ struct gb_display_sdl {
     unsigned int p_pressed;
     unsigned int f_pressed;
 
+    unsigned int plus_pressed;
+    unsigned int minus_pressed;
+
     unsigned int cur_palette;
 };
 
@@ -31,6 +34,7 @@ struct gb_sound_sdl {
 
     SDL_AudioSpec spec;
     SDL_AudioDeviceID dev;
+    int cur_volume;
 };
 
 struct gb_sdl_driver {

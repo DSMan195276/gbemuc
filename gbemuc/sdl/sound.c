@@ -32,7 +32,7 @@ static void gb_sdl_sound_play_buf(struct gb_apu_sound *sound, int16_t *buf, size
 
     memset(new_buf, 0, bytes);
 
-    SDL_MixAudio((uint8_t *)new_buf, (uint8_t *)buf, bytes, 128 / 32);
+    SDL_MixAudio((uint8_t *)new_buf, (uint8_t *)buf, bytes, driver->cur_volume);
     SDL_QueueAudio(driver->dev, new_buf, bytes);
     return ;
 }
@@ -42,6 +42,8 @@ void gb_sound_sdl_init(struct gb_sound_sdl *driver)
     int ret;
 
     memset(driver, 0, sizeof(*driver));
+
+    driver->cur_volume = 64;
 
     driver->sound.play = gb_sdl_sound_play;
     driver->sound.pause = gb_sdl_sound_pause;

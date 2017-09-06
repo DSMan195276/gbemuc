@@ -82,6 +82,7 @@ static void gb_sdl_display(struct gb_gpu_display *disp, union gb_gpu_color_u *bu
 static void gb_sdl_get_keystate(struct gb_gpu_display *disp, struct gb_keypad *keys)
 {
     struct gb_display_sdl *sdl = container_of(disp, struct gb_display_sdl, gb_disp);
+    struct gb_sdl_driver *driver = container_of(sdl, struct gb_sdl_driver, display);
     const uint8_t *keystate;
 
     SDL_PumpEvents();
@@ -112,6 +113,26 @@ static void gb_sdl_get_keystate(struct gb_gpu_display *disp, struct gb_keypad *k
     } else if (!keystate[SDL_SCANCODE_F]) {
         sdl->f_pressed = 0;
     }
+
+    if (keystate[SDL_GetScancodeFromKey(SDLK_PLUS)] && !sdl->plus_pressed) {
+        sdl->plus_pressed = 1;
+    } else if (!keystate[SDL_GetScancodeFromKey(SDLK_PLUS)] && sdl->plus_pressed) {
+        driver->sound.cur_volume++;
+        if (driver->sound.cur_volume > 128)
+            driver->sound.cur_volume = 128;
+        sdl->plus_pressed = 0;
+    }
+
+    if (keystate[SDL_SCANCODE_MINUS] && !sdl->minus_pressed) {
+        sdl->minus_pressed = 1;
+    } else if (!keystate[SDL_SCANCODE_MINUS] && sdl->minus_pressed) {
+        driver->sound.cur_volume--;
+        if (driver->sound.cur_volume < 0)
+            driver->sound.cur_volume = 0;
+        sdl->minus_pressed = 0;
+    }
+
+
     return ;
 }
 
