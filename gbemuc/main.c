@@ -7,8 +7,7 @@
 
 #include "debug.h"
 #include "arg_parser.h"
-#include "sdl_display.h"
-#include "sdl_sound.h"
+#include "sdl_driver.h"
 #include "gb/rom.h"
 #include "gb/debugger.h"
 #include "gb.h"
@@ -128,8 +127,9 @@ int main(int argc, char **argv)
 
     SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
 
-    disp = gb_sdl_display_new(window);
-    sound = gb_sdl_sound_new();
+    struct gb_sdl_driver *driver = gb_sdl_driver_new(window);
+    disp = gb_sdl_driver_get_gb_gpu_display(driver);
+    sound = gb_sdl_driver_get_gb_apu_sound(driver);
 
     DEBUG_OFF();
     gb_emu_set_display(&emu, disp);
@@ -140,7 +140,7 @@ int main(int argc, char **argv)
     gb_run(&emu, cpu_type);
 
     gb_emu_clear(&emu);
-    gb_sdl_display_destroy(disp);
+    gb_sdl_driver_destory(driver);
     SDL_DestroyWindow(window);
 
     SDL_Quit();

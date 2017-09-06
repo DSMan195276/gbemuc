@@ -7,15 +7,9 @@
 
 #include "char_buf.h"
 #include "gb/sound.h"
+#include "sdl_internal.h"
 
 #define SDL_SAMPLE_BUF_SIZE (8192 * 8)
-
-struct gb_sound_driver_sdl {
-    struct gb_apu_sound sound;
-
-    SDL_AudioSpec spec;
-    SDL_AudioDeviceID dev;
-};
 
 static void gb_sdl_sound_play(struct gb_apu_sound *sound)
 {
@@ -29,7 +23,7 @@ static void gb_sdl_sound_pause(struct gb_apu_sound *sound)
 
 static void gb_sdl_sound_play_buf(struct gb_apu_sound *sound, int16_t *buf, size_t bytes)
 {
-    struct gb_sound_driver_sdl *driver = container_of(sound, struct gb_sound_driver_sdl, sound);
+    struct gb_sound_sdl *driver = container_of(sound, struct gb_sound_sdl, sound);
 
     while (SDL_GetQueuedAudioSize(driver->dev) > bytes)
         SDL_Delay(5);
@@ -43,10 +37,9 @@ static void gb_sdl_sound_play_buf(struct gb_apu_sound *sound, int16_t *buf, size
     return ;
 }
 
-struct gb_apu_sound *gb_sdl_sound_new(void)
+void gb_sound_sdl_init(struct gb_sound_sdl *driver)
 {
     int ret;
-    struct gb_sound_driver_sdl *driver = malloc(sizeof(*driver));
 
     memset(driver, 0, sizeof(*driver));
 
@@ -67,14 +60,10 @@ struct gb_apu_sound *gb_sdl_sound_new(void)
     printf("SDL_OpenAudio: %d\n", ret);
 
     SDL_PauseAudio(false);
-    return &driver->sound;
 }
 
-void gb_sdl_sound_destroy(struct gb_apu_sound *sound)
+void gb_sound_sdl_clear(struct gb_sound_sdl *driver)
 {
-    struct gb_sound_driver_sdl *driver = container_of(sound, struct gb_sound_driver_sdl, sound);
-
     SDL_CloseAudio();
-    free(driver);
 }
 
