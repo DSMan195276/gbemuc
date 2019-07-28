@@ -31,7 +31,7 @@ void jit_block_init(struct jit_block *block)
 
 static int jit_block_hash(uint16_t addr, int bank)
 {
-    return (addr + bank) % HASH_TABLE_SIZE;
+    return (addr ^ (bank << 16)) % HASH_TABLE_SIZE;
 }
 
 void gb_emu_cpu_dispatcher_init(struct cpu_dispatcher *dispatcher)
@@ -59,13 +59,29 @@ void gb_emu_jit_func_create(struct gb_cpu_jit_context *ctx, struct cpu_dispatche
     ctx->context = dispatcher->context;
     ctx->gb_emu = emu;
     ctx->addr = addr;
+    ctx->func_exit_label = jit_label_undefined;
 
     ctx->func = jit_function_create(dispatcher->context, jit_block_signature);;
     ctx->emu = jit_value_get_param(ctx->func, 0);
+
+    int i;
+    for (i = 0; i < ARRAY_SIZE(ctx->regs); i++)
+        ctx->regs[i] = jit_insn_load_relative(ctx->func, ctx->emu, GB_REG8_OFFSET(i), jit_type_ubyte);
+}
+
+void gb_emu_jit_func_exit(struct gb_cpu_jit_context *ctx)
+{
+    jit_insn_branch(ctx->func, &ctx->func_exit_label);
 }
 
 void (*gb_emu_jit_func_complete(struct gb_cpu_jit_context *ctx)) (struct gb_emu *)
 {
+    jit_insn_label(ctx->func, &ctx->func_exit_label);
+
+    int i;
+    for (i = 0; i < ARRAY_SIZE(ctx->regs); i++)
+        jit_insn_store_relative(ctx->func, ctx->emu, GB_REG8_OFFSET(i), jit_insn_convert(ctx->func, ctx->regs[i], jit_type_ubyte, 0));
+
     jit_insn_default_return(ctx->func);
     jit_function_compile(ctx->func);
     return jit_function_to_closure(ctx->func);
@@ -89,6 +105,7 @@ void gb_emu_run_dispatcher(struct cpu_dispatcher *dispatcher, struct gb_emu *emu
             }
 
             if (!found) {
+                printf("Compiling [0x%04x]...\n", emu->cpu.r.w[GB_REG_PC]);
                 found = object_pool_get(&dispatcher->jit_blocks);
                 jit_block_init(found);
 

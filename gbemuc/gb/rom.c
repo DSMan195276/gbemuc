@@ -136,10 +136,15 @@ void gb_rom_open(struct gb_rom *rom, const char *filename)
 
     rom->title_chksum = hchecksum;
 
-    snprintf(sav_file, sizeof(sav_file), "%s.sav", filename);
-    printf("Sav: %s\n", sav_file);
+    if (!rom->sav_filename) {
+        snprintf(sav_file, sizeof(sav_file), "%s.sav", filename);
+        printf("Sav: %s\n", sav_file);
 
-    rom->sav_file = fopen(sav_file, "r+");
+        rom->sav_file = fopen(sav_file, "r+");
+    } else {
+        rom->sav_file = fopen(rom->sav_filename, "r+");
+    }
+
     if (!rom->sav_file)
         rom->sav_file = fopen(sav_file, "w+");
 }

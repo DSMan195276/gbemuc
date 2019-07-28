@@ -67,6 +67,10 @@ void gb_emu_rom_open(struct gb_emu *emu, const char *filename)
 
         if (flen != 0)
             fread(emu->mmu.eram, 1, flen, emu->rom.sav_file);
+    } else if (emu->rom.cart_type == 0x7F) {
+        DEBUG_PRINTF("GB LOADER CONTROLLER\n");
+        emu->mmu.mbc_controller = &gb_loader_mmu_entry;
+        emu->mmu.eram_controller = &gb_loader_eram_mmu_entry;
     }
 }
 

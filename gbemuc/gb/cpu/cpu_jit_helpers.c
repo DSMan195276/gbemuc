@@ -67,24 +67,60 @@ void gb_jit_set_flag(struct gb_cpu_jit_context *ctx, uint8_t flag)
 
 jit_value_t gb_jit_load_reg8(struct gb_cpu_jit_context *ctx, int reg)
 {
-    jit_value_t val = jit_insn_load_relative(ctx->func, ctx->emu, GB_REG8_OFFSET(reg), jit_type_ubyte);
-    return val;
+    //jit_value_t val = jit_insn_load_relative(ctx->func, ctx->emu, GB_REG8_OFFSET(reg), jit_type_ubyte);
+    //return val;
+    return ctx->regs[reg];
 }
 
 void gb_jit_store_reg8(struct gb_cpu_jit_context *ctx, int reg, jit_value_t val)
 {
-    jit_insn_store_relative(ctx->func, ctx->emu, GB_REG8_OFFSET(reg), jit_insn_convert(ctx->func, val, jit_type_ubyte, 0));
+    //jit_insn_store_relative(ctx->func, ctx->emu, GB_REG8_OFFSET(reg), jit_insn_convert(ctx->func, val, jit_type_ubyte, 0));
+    jit_insn_store(ctx->func, ctx->regs[reg], val);
 }
 
 jit_value_t gb_jit_load_reg16(struct gb_cpu_jit_context *ctx, int reg)
 {
-    return jit_insn_load_relative(ctx->func, ctx->emu, GB_REG16_OFFSET(reg), jit_type_ushort);
+    //return jit_insn_load_relative(ctx->func, ctx->emu, GB_REG16_OFFSET(reg), jit_type_ushort);
+    int reg8 = reg * 2;
+    jit_value_t ret;
+
+    ret = jit_insn_shl(ctx->func, jit_insn_convert(ctx->func, gb_jit_load_reg8(ctx, reg8 + 1), jit_type_ushort, 0), GB_JIT_CONST_USHORT(ctx->func, 8));
+    ret = jit_insn_or(ctx->func, ret, gb_jit_load_reg8(ctx, reg8));
+    return ret;
 }
 
 void gb_jit_store_reg16(struct gb_cpu_jit_context *ctx, int reg, jit_value_t val)
 {
-    jit_insn_store_relative(ctx->func, ctx->emu, GB_REG16_OFFSET(reg), jit_insn_convert(ctx->func, val, jit_type_ushort, 0));
+    //jit_insn_store_relative(ctx->func, ctx->emu, GB_REG16_OFFSET(reg), jit_insn_convert(ctx->func, val, jit_type_ushort, 0));
+    int reg8 = reg * 2;
+    gb_jit_store_reg8(ctx, reg8 + 1, jit_insn_shr(ctx->func, val, GB_JIT_CONST_USHORT(ctx->func, 8)));
+    gb_jit_store_reg8(ctx, reg8, jit_insn_and(ctx->func, val, GB_JIT_CONST_USHORT(ctx->func, 0x00FF)));
 }
+
+//jit_value_t gb_jit_load_hook_flag(struct gb_cpu_jit_context *ctx)
+//{
+//    return jit_insn_load_relative(ctx->func, ctx->emu, offsetof(struct gb_emu, cpu.hook_flag), jit_type_uint);
+//}
+
+//jit_value_t gb_jit_load_break_flag(struct gb_cpu_jit_context *ctx)
+//{
+//    return jit_insn_load_relative(ctx->func, ctx->emu, offsetof(struct gb_emu, cpu.break_flag), jit_type_uint);
+//}
+//
+//jit_value_t gb_jit_load_cpu_hooks(struct gb_cpu_jit_context *ctx)
+//{
+//    return jit_insn_load_relative(ctx->func, ctx->emu, offsetof(struct gb_emu, cpu.hooks), jit_type_void_ptr);
+//}
+//
+//jit_value_t gb_jit_cpu_hooks_load_next_inst(struct gb_cpu_jit_context *ctx, jit_value_t hooks_ptr)
+//{
+//    return jit_insn_load_relative(ctx->func, hooks_ptr, offsetof(struct gb_cpu_hooks, next_inst), jit_type_void_ptr);
+//}
+//
+//jit_value_t gb_jit_cpu_hooks_load_end_inst(struct gb_cpu_jit_context *ctx, jit_value_t hooks_ptr)
+//{
+//    return jit_insn_load_relative(ctx->func, hooks_ptr, offsetof(struct gb_cpu_hooks, end_inst), jit_type_void_ptr);
+//}
 
 static void gb_jit_set_if_true(jit_function_t func, jit_value_t result, jit_value_t flags, uint8_t flag)
 {

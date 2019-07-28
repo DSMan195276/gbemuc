@@ -26,6 +26,7 @@ static const char *arg_str = "[Flags] [Game]";
     X(cpu, "cpu", 1, '\0', "'jit' or 'interpreter' ('interpreter' default)") \
     X(help, "help", 0, 'h', "Display help") \
     X(version, "version", 0, 'v', "Display version information") \
+    X(sav, "sav", 1, 's', "Specify a sav file to load") \
     X(last, NULL, 0, '\0', NULL)
 
 enum arg_index {
@@ -103,6 +104,10 @@ int main(int argc, char **argv)
             }
             break;
 
+        case ARG_sav:
+            emu.rom.sav_filename = argarg;
+            break;
+
         case ARG_EXTRA:
             if (!game)
                 game = argarg;
@@ -125,7 +130,7 @@ int main(int argc, char **argv)
 
     window = SDL_CreateWindow("GBEMUC", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, GB_SCREEN_WIDTH * 4, GB_SCREEN_HEIGHT * 4, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
 
-    SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
+    //SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
 
     struct gb_sdl_driver *driver = gb_sdl_driver_new(window);
     disp = gb_sdl_driver_get_gb_gpu_display(driver);
@@ -138,6 +143,7 @@ int main(int argc, char **argv)
     gb_emu_reset(&emu);
 
     gb_run(&emu, cpu_type);
+    //gb_debugger_run(&emu);
 
     gb_emu_clear(&emu);
     gb_sdl_driver_destory(driver);

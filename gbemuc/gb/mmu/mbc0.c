@@ -15,10 +15,10 @@
 
 static uint8_t mbc0_read8(struct gb_emu *emu, uint16_t addr, uint16_t low)
 {
-    if (emu->mmu.bios_flag || addr > 0x0100)
-        return emu->rom.data[addr];
-    else
+    if (!emu->mmu.bios_flag && addr < 0x0100)
         return gb_bios[addr];
+
+    return emu->rom.data[addr];
 }
 
 static void mbc0_write8(struct gb_emu *emu, uint16_t addr, uint16_t low, uint8_t val)

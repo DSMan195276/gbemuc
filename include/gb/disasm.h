@@ -10,6 +10,7 @@ struct opcode_format {
         OPCODE_16BIT,
         OPCODE_8BIT,
     } type;
+    int is_jmp;
 };
 
 struct opcode_format opcode_decode_format_str[256];

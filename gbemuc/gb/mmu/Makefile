@@ -6,3 +6,5 @@ objs-y += mbc1.o
 objs-y += mbc3.o
 objs-y += mbc5.o
 
+objs-y += gb_loader.o
+

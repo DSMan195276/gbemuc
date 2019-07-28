@@ -6,6 +6,8 @@ objtree := .
 real_srctree := $(srctree)
 real_objtree := $(objtree)
 
+.ONESHELL:
+
 # This is our default target - The default is the first target in the file so
 # we need to define this fairly high-up.
 all: real-all

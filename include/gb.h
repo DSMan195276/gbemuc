@@ -44,9 +44,9 @@ struct gb_emu {
 
     struct gb_rom rom;
 
-    unsigned int hook_flag :1;
-    unsigned int stop_emu  :1;
-    unsigned int break_flag :1;
+    unsigned int hook_flag;
+    unsigned int stop_emu;
+    unsigned int break_flag;
 
     enum gb_emu_type gb_type;
 

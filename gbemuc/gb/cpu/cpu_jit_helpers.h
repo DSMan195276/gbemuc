@@ -55,4 +55,10 @@ void gb_jit_printf(struct gb_cpu_jit_context *ctx, const char *str, ...);
 void gb_jit_dump_regs(struct gb_cpu_jit_context *ctx);
 void gb_jit_disasm_next(struct gb_cpu_jit_context *ctx);
 
+jit_value_t gb_jit_load_hook_flag(struct gb_cpu_jit_context *ctx);
+jit_value_t gb_jit_load_break_flag(struct gb_cpu_jit_context *ctx);
+jit_value_t gb_jit_load_cpu_hooks(struct gb_cpu_jit_context *ctx);
+jit_value_t gb_jit_cpu_hooks_load_next_inst(struct gb_cpu_jit_context *ctx, jit_value_t hooks_ptr);
+jit_value_t gb_jit_cpu_hooks_load_end_inst(struct gb_cpu_jit_context *ctx, jit_value_t hooks_ptr);
+
 #endif

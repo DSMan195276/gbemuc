@@ -52,6 +52,7 @@ static void mbc5_write8(struct gb_emu *emu, uint16_t addr, uint16_t low, uint8_t
         break;
 
     case 0x3:
+        //printf("Hit here: %d\n", val);
         emu->mmu.mbc5.rom_bank = (emu->mmu.mbc5.rom_bank & 0x0FF) | ((val & 0x01) << 8);
         break;
 

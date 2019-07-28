@@ -3,7 +3,7 @@
 
 #include "hlist.h"
 
-#define HASH_TABLE_SIZE 4096
+#define HASH_TABLE_SIZE (4096 * 16)
 
 struct hashtable {
     hlist_head_t table[HASH_TABLE_SIZE];

@@ -36,6 +36,8 @@ struct gb_rom {
     size_t length;
     char *data;
 
+    /* If specified, this is used rather then the default of "game_filename.sav" */
+    const char *sav_filename;
     FILE *sav_file;
 };
 

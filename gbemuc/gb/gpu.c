@@ -350,9 +350,14 @@ void gb_gpu_ctl_change(struct gb_emu *emu, struct gb_gpu *gpu, uint8_t new_ctl)
 
     if (diff & GB_GPU_CTL_DISPLAY) {
         int i, j;
-        for (i = 0; i < GB_SCREEN_HEIGHT; i++)
-            for (j = 0; j < GB_SCREEN_WIDTH; j++)
-                gpu->screenbuf[i * GB_SCREEN_WIDTH + j] = gpu->display->dmg_theme.bg[0];
+        for (i = 0; i < GB_SCREEN_HEIGHT; i++) {
+            for (j = 0; j < GB_SCREEN_WIDTH; j++) {
+                if (gb_emu_is_cgb(emu))
+                    gpu->screenbuf[i * GB_SCREEN_WIDTH + j].i_color = make_cgb_argb_color(0xFFFF, emu->config.cgb_real_colors);
+                else
+                    gpu->screenbuf[i * GB_SCREEN_WIDTH + j] = gpu->display->dmg_theme.bg[0];
+            }
+        }
         gb_gpu_display_screen(emu, gpu);
 
         gpu->cur_line = 0;
@@ -488,15 +493,15 @@ void gb_gpu_vram_write8(struct gb_emu *emu, uint16_t addr, uint16_t low, uint8_t
 
 uint8_t gb_gpu_sprite_read8(struct gb_emu *emu, uint16_t addr, uint16_t low)
 {
-    //if (emu->gpu.mode != GB_GPU_MODE_VRAM && emu->gpu.mode != GB_GPU_MODE_OAM)
+    if (emu->gpu.mode != GB_GPU_MODE_VRAM && emu->gpu.mode != GB_GPU_MODE_OAM)
         return emu->gpu.oam.mem[addr];
-    //else
-    //    return 0xFF;
+    else
+        return 0xFF;
 }
 
 void gb_gpu_sprite_write8(struct gb_emu *emu, uint16_t addr, uint16_t low, uint8_t byte)
 {
-    //if (emu->gpu.mode != GB_GPU_MODE_VRAM && emu->gpu.mode != GB_GPU_MODE_OAM)
+    if (emu->gpu.mode != GB_GPU_MODE_VRAM && emu->gpu.mode != GB_GPU_MODE_OAM)
         emu->gpu.oam.mem[addr] = byte;
 }
 

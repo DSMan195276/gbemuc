@@ -17,6 +17,15 @@
 #define OP_FORM_16(form) \
     { .format = form, .type = OPCODE_16BIT }
 
+#define OP_FORM_JMP_NONE(form) \
+    { .format = form, .type = OPCODE_NONE, .is_jmp = 1 }
+
+#define OP_FORM_JMP_ONE(form) \
+    { .format = form, .type = OPCODE_8BIT, .is_jmp = 1 }
+
+#define OP_FORM_JMP_16(form) \
+    { .format = form, .type = OPCODE_16BIT, .is_jmp = 1 }
+
 struct opcode_format opcode_decode_format_str[256] = {
     [0x00] =
     OP_FORM_NONE("NOP"),

@@ -5,6 +5,17 @@
 #include <stdio.h>
 #include <sys/time.h>
 
+#define MAX_FILE_PACKET_NAME 19
+
+struct file_packet {
+    uint8_t flags;
+    char name[MAX_FILE_PACKET_NAME];
+} __attribute__((packed));
+
+enum {
+    FILE_PACKET_FLAG_IS_DIR = 0x01,
+};
+
 struct gb_emu;
 
 struct gb_mmu_entry {
@@ -20,6 +31,16 @@ extern struct gb_mmu_entry gb_mbc0_mmu_entry, gb_mbc0_eram_mmu_entry;
 extern struct gb_mmu_entry gb_mbc1_mmu_entry, gb_mbc1_eram_mmu_entry;
 extern struct gb_mmu_entry gb_mbc3_mmu_entry, gb_mbc3_eram_mmu_entry;
 extern struct gb_mmu_entry gb_mbc5_mmu_entry, gb_mbc5_eram_mmu_entry;
+extern struct gb_mmu_entry gb_loader_mmu_entry, gb_loader_eram_mmu_entry;
+
+struct gb_mmu_gb_loader {
+    int cur_game_loc;
+    int cur_game_pos;
+    int cur_game_offset;
+    int ready_signal;
+
+    struct file_packet cur_game;
+};
 
 struct gb_mmu_mbc1 {
     uint8_t ram_enable;
@@ -73,6 +94,8 @@ struct gb_mmu {
     struct gb_mmu_mbc1 mbc1;
     struct gb_mmu_mbc3 mbc3;
     struct gb_mmu_mbc5 mbc5;
+
+    struct gb_mmu_gb_loader gb_loader;
 
     struct gb_mmu_entry *mbc_controller, *eram_controller;
 

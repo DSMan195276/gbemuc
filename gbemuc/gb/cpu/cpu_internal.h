@@ -4,7 +4,7 @@
 #include "gb.h"
 
 int gb_emu_cpu_run_next_inst(struct gb_emu *emu);
-void gb_emu_check_interrupt(struct gb_emu *emu);
+int gb_emu_check_interrupt(struct gb_emu *emu);
 int gb_emu_hdma_check(struct gb_emu *emu);
 void gb_emu_run_interpreter(struct gb_emu *emu);
 
@@ -25,4 +25,12 @@ static inline void gb_emu_run_jit(struct gb_emu *emu)
 }
 #endif
 
+extern const uint16_t gb_daa_table[];
+
+/* Returns whether or not the provided value maps to (HL) */
+#define IS_HL(x) ((x) == b8(110))
+
+extern const uint8_t gb_reg_map_8bit[8];
+extern const uint8_t gb_reg_map_16bit_sp[4];
+extern const uint8_t gb_reg_map_16bit_af[4];
 #endif

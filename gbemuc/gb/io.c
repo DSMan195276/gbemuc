@@ -25,6 +25,8 @@ void gb_emu_io_reset(struct gb_emu *emu)
     emu->gpu.window_x = 0;
     emu->gpu.window_y = 0;
 
+    emu->gpu.back_palette = 0xE4;
+
     emu->gpu.cgb_vram_bank_no = 0;
     emu->mmu.cgb_wram_bank_no = 1;
 
