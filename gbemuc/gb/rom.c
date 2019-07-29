@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "debug.h"
 #include "gb/rom.h"
 
 const char gb_nintendo_logo[] = {
@@ -108,6 +109,8 @@ void gb_rom_open(struct gb_rom *rom, const char *filename)
     rom->length = ftell(f);
     fseek(f, 0, SEEK_SET);
 
+    DEBUG_PRINTF("Rom length: %ld\n", rom->length);
+
     /* Read file into 'data' */
     rom->data = malloc(rom->length);
     fread(rom->data, rom->length, 1, f);
@@ -140,13 +143,12 @@ void gb_rom_open(struct gb_rom *rom, const char *filename)
         snprintf(sav_file, sizeof(sav_file), "%s.sav", filename);
         printf("Sav: %s\n", sav_file);
 
-        rom->sav_file = fopen(sav_file, "r+");
-    } else {
-        rom->sav_file = fopen(rom->sav_filename, "r+");
-    }
+        // FIXME: This is obviously going to leak
+        char *filen = malloc(strlen(sav_file));
 
-    if (!rom->sav_file)
-        rom->sav_file = fopen(sav_file, "w+");
+        strcpy(filen, sav_file);
+        rom->sav_filename = filen;
+    }
 }
 
 void gb_rom_dump_header(struct gb_rom *rom, FILE *file)
@@ -221,8 +223,5 @@ void gb_rom_clear(struct gb_rom *rom)
 {
     if (rom->data)
         free(rom->data);
-
-    if (rom->sav_file)
-        fclose(rom->sav_file);
 }
 

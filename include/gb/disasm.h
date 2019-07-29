@@ -13,7 +13,7 @@ struct opcode_format {
     int is_jmp;
 };
 
-struct opcode_format opcode_decode_format_str[256];
+extern struct opcode_format opcode_decode_format_str[256];
 
 void gb_disasm_inst(char *buf, uint8_t *bytes);
 

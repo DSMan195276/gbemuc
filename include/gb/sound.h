@@ -4,7 +4,11 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include <SDL2/SDL.h>
+#ifdef __EMSCRIPTEN__
+# include <SDL.h>
+#else
+# include <SDL2/SDL.h>
+#endif
 
 #define GB_APU_SAMPLES (4096 * 4)
 #define GB_APU_SAMPLE_RATE 44100

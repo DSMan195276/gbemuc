@@ -2,6 +2,7 @@
 #define GBEMUC_SDL_SDL_INTERNAL_H
 
 #include <SDL2/SDL.h>
+#include <stdint.h>
 
 #include "gb/gpu.h"
 #include "gb/sound.h"
@@ -35,6 +36,9 @@ struct gb_sound_sdl {
     SDL_AudioSpec spec;
     SDL_AudioDeviceID dev;
     int cur_volume;
+
+    unsigned int max_drift;
+    unsigned int draining_audio;
 };
 
 struct gb_sdl_driver {

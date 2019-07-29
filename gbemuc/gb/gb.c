@@ -5,6 +5,9 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <signal.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include "gb.h"
 #include "gb/gpu.h"
@@ -19,12 +22,18 @@ void gb_emu_rom_open(struct gb_emu *emu, const char *filename)
 {
     int cart_bitmap;
     size_t flen = 0;
+    FILE *f = NULL;
+
     gb_rom_open(&emu->rom, filename);
 
-    if (emu->rom.sav_file) {
-        fseek(emu->rom.sav_file, 0, SEEK_END);
-        flen = ftell(emu->rom.sav_file);
-        fseek(emu->rom.sav_file, 0, SEEK_SET);
+    if (emu->rom.sav_filename) {
+        struct stat s;
+
+        stat(emu->rom.sav_filename, &s);
+        flen = s.st_size;
+
+        if (flen)
+            f = fopen(emu->rom.sav_filename, "r");
 
         printf("Sav file size: %zd\n", flen);
     }
@@ -44,7 +53,7 @@ void gb_emu_rom_open(struct gb_emu *emu, const char *filename)
         emu->mmu.eram_controller = &gb_mbc1_eram_mmu_entry;
 
         if (flen != 0)
-            fread(emu->mmu.eram, 1, flen, emu->rom.sav_file);
+            fread(emu->mmu.eram, 1, flen, f);
 
     } else if (cart_bitmap & GB_CART_FLAG(MBC3)) {
         DEBUG_PRINTF("MBC3 CONTROLLER\n");
@@ -52,12 +61,12 @@ void gb_emu_rom_open(struct gb_emu *emu, const char *filename)
         emu->mmu.eram_controller = &gb_mbc3_eram_mmu_entry;
 
         if (flen != 0) {
-            fread(emu->mmu.eram, 1, 4 * 8192, emu->rom.sav_file);
+            fread(emu->mmu.eram, 1, 4 * 8192, f);
             if (cart_bitmap & GB_CART_FLAG(TIMER) && flen > 4 * 8192) {
                 /* Timer information */
-                fread(&emu->mmu.mbc3.cur, 1, sizeof(emu->mmu.mbc3.cur), emu->rom.sav_file);
-                fread(&emu->mmu.mbc3.latched, 1, sizeof(emu->mmu.mbc3.latched), emu->rom.sav_file);
-                fread(&emu->mmu.mbc3.last_time_update, 1, sizeof(emu->mmu.mbc3.last_time_update), emu->rom.sav_file);
+                fread(&emu->mmu.mbc3.cur, 1, sizeof(emu->mmu.mbc3.cur), f);
+                fread(&emu->mmu.mbc3.latched, 1, sizeof(emu->mmu.mbc3.latched), f);
+                fread(&emu->mmu.mbc3.last_time_update, 1, sizeof(emu->mmu.mbc3.last_time_update), f);
             }
         }
     } else if (cart_bitmap & GB_CART_FLAG(MBC5)) {
@@ -65,13 +74,18 @@ void gb_emu_rom_open(struct gb_emu *emu, const char *filename)
         emu->mmu.mbc_controller = &gb_mbc5_mmu_entry;
         emu->mmu.eram_controller = &gb_mbc5_eram_mmu_entry;
 
-        if (flen != 0)
-            fread(emu->mmu.eram, 1, flen, emu->rom.sav_file);
+        if (flen != 0) {
+            size_t sl = fread(emu->mmu.eram, 1, flen, f);
+            printf("Read %zd bytes!\n", sl);
+        }
     } else if (emu->rom.cart_type == 0x7F) {
         DEBUG_PRINTF("GB LOADER CONTROLLER\n");
         emu->mmu.mbc_controller = &gb_loader_mmu_entry;
         emu->mmu.eram_controller = &gb_loader_eram_mmu_entry;
     }
+
+    if (f)
+        fclose(f);
 }
 
 void gb_emu_add_breakpoint(struct gb_emu *emu, uint16_t addr)
@@ -143,26 +157,35 @@ void gb_emu_set_sound(struct gb_emu *emu, struct gb_apu_sound *sound)
     emu->sound.driver = sound;
 }
 
+void gb_emu_write_save(struct gb_emu *emu)
+{
+    FILE *f = fopen(emu->rom.sav_filename, "w+");
+
+    printf("Writing .sav file: %zd bytes\n", gb_ram_size[emu->rom.ram_size] * 1024);
+    printf("sav_file: %s\n", emu->rom.sav_filename);
+
+    fseek(f, 0, SEEK_SET);
+    fwrite(emu->mmu.eram, 1, gb_ram_size[emu->rom.ram_size] * 1024, f);
+
+    if (gb_cart_type_bitmap[emu->rom.cart_type] & GB_CART_FLAG(TIMER)) {
+        int zero = 0;
+        fwrite(&emu->mmu.mbc3.cur, 1, sizeof(emu->mmu.mbc3.cur), f);
+        fwrite(&emu->mmu.mbc3.latched, 1, sizeof(emu->mmu.mbc3.latched), f);
+        fwrite(&emu->mmu.mbc3.last_time_update, 1, sizeof(emu->mmu.mbc3.last_time_update), f);
+
+        /* Some emulators only work with an extra 4-bytes of zeros on the
+         * end (presumably for a 64-bit timestamp). We work with either, but
+         * always write the zeros for compatible with other emulators. */
+        fwrite(&zero, 1, 4, f);
+    }
+
+    fclose(f);
+}
+
 void gb_emu_clear(struct gb_emu *emu)
 {
-    if (emu->rom.sav_file) {
-        printf("Writing .sav file: %zd bytes\n", gb_ram_size[emu->rom.ram_size] * 1024);
-
-        fseek(emu->rom.sav_file, 0, SEEK_SET);
-        fwrite(emu->mmu.eram, 1, gb_ram_size[emu->rom.ram_size] * 1024, emu->rom.sav_file);
-
-        if (gb_cart_type_bitmap[emu->rom.cart_type] & GB_CART_FLAG(TIMER)) {
-            int zero = 0;
-            fwrite(&emu->mmu.mbc3.cur, 1, sizeof(emu->mmu.mbc3.cur), emu->rom.sav_file);
-            fwrite(&emu->mmu.mbc3.latched, 1, sizeof(emu->mmu.mbc3.latched), emu->rom.sav_file);
-            fwrite(&emu->mmu.mbc3.last_time_update, 1, sizeof(emu->mmu.mbc3.last_time_update), emu->rom.sav_file);
-
-            /* Some emulators only work with an extra 4-bytes of zeros on the
-             * end (presumably for a 64-bit timestamp). We work with either, but
-             * always write the zeros for compatible with other emulators. */
-            fwrite(&zero, 1, 4, emu->rom.sav_file);
-        }
-    }
+    if (emu->rom.sav_filename)
+        gb_emu_write_save(emu);
 
     gb_rom_clear(&emu->rom);
     gb_sound_clear(&emu->sound);

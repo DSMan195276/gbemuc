@@ -1718,16 +1718,52 @@ inst_end:
     return cycles;
 }
 
+#ifdef INTERPRETER_ASYNC
+static int write_save = 0;
+
+void gb_write_save(void)
+{
+    write_save = 1;
+}
+
+static void interpreter_main_loop(void *arg)
+{
+    struct gb_emu *emu = arg;
+
+    emu->gpu.frame_is_done = 0;
+    while (!emu->gpu.frame_is_done && !emu->stop_emu)
+        gb_emu_cpu_run_next_inst(emu);
+
+    if (write_save) {
+        gb_emu_write_save(emu);
+        write_save = 0;
+
+#ifdef __EMSCRIPTEN__
+        // This queues off a sync of the FS backing the save file
+        EM_ASM(
+            FS.syncfs(function (err) {
+                console.log("Error writing save file: " + err);
+            });
+        );
+#endif
+    }
+
+    if (emu->stop_emu)
+        gb_cancel_main_loop_async();
+}
+#else
+static void interpreter_main_loop(void *arg)
+{
+    struct gb_emu *emu = arg;
+
+    while (!emu->stop_emu)
+        gb_emu_cpu_run_next_inst(emu);
+}
+#endif
+
 void gb_emu_run_interpreter(struct gb_emu *emu)
 {
-    int i;
-    while (!emu->stop_emu) {
-        for (i = 0; i < 20000; i++) {
-            gb_emu_cpu_run_next_inst(emu);
-            if (emu->stop_emu)
-                break;
-        }
-    }
+    run_gb_main_loop(interpreter_main_loop, emu);
 }
 
 uint8_t gb_cpu_int_read8(struct gb_emu *emu, uint16_t addr, uint16_t low)

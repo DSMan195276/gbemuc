@@ -38,7 +38,6 @@ struct gb_rom {
 
     /* If specified, this is used rather then the default of "game_filename.sav" */
     const char *sav_filename;
-    FILE *sav_file;
 };
 
 enum gb_dest_code {

@@ -391,6 +391,7 @@ void gb_emu_gpu_tick(struct gb_emu *emu, int cycles)
                           + (GB_GPU_CLOCK_HBLANK + GB_GPU_CLOCK_OAM + GB_GPU_CLOCK_VRAM) * GB_SCREEN_HEIGHT) {
             gb_gpu_display_screen(emu, gpu);
             gpu->clock = 0;
+	        gpu->frame_is_done = 1;
         }
         return ;
     }
@@ -406,6 +407,7 @@ void gb_emu_gpu_tick(struct gb_emu *emu, int cycles)
             if (gpu->cur_line == GB_SCREEN_HEIGHT) {
                 gpu->mode = GB_GPU_MODE_VBLANK;
                 gb_gpu_display_screen(emu, gpu);
+	            gpu->frame_is_done = 1;
 
                 emu->cpu.int_flags |= (1 << GB_INT_VBLANK);
 

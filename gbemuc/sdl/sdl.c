@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 #include <time.h>
-#include <SDL2/SDL.h>
+#include <SDL.h>
 
 #include "sdl_driver.h"
 #include "sdl_internal.h"

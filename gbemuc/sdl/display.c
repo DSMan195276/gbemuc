@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 #include <time.h>
-#include <SDL2/SDL.h>
+#include <SDL.h>
 
 #include "gb/gpu.h"
 #include "sdl_driver.h"
@@ -149,7 +149,7 @@ void gb_display_sdl_init(struct gb_display_sdl *disp, SDL_Window *window)
     disp->texture = SDL_CreateTexture(disp->dest_rend, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, GB_SCREEN_WIDTH, GB_SCREEN_HEIGHT);
 
     disp->last_tick = 0;
-    disp->show_fps = 1;
+    disp->show_fps = 0;
 }
 
 void gb_display_sdl_clear(struct gb_display_sdl *disp)

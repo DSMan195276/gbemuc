@@ -66,6 +66,7 @@ void gb_emu_set_display(struct gb_emu *emu, struct gb_gpu_display *display);
 void gb_emu_set_sound(struct gb_emu *emu, struct gb_apu_sound *sound);
 void gb_emu_dump_regs(struct gb_emu *emu, char *output_buf);
 
+void gb_emu_write_save(struct gb_emu *emu);
 void gb_emu_init(struct gb_emu *emu);
 void gb_emu_clear(struct gb_emu *emu);
 

@@ -3,6 +3,10 @@
 
 #include <stdint.h>
 
+#ifdef __EMSCRIPTEN__
+# include "emscripten.h"
+#endif
+
 /* Note, the order of the entries in the next two enum's is important - They
  * have to match, and they need to be in this specefic order. */
 enum {
@@ -104,5 +108,20 @@ struct gb_emu;
 
 uint8_t gb_cpu_int_read8(struct gb_emu *, uint16_t addr, uint16_t low);
 void gb_cpu_int_write8(struct gb_emu *, uint16_t addr, uint16_t low, uint8_t byte);
+
+#ifdef __EMSCRIPTEN__
+static inline void run_gb_main_loop(void (*main_loop) (void *), struct gb_emu *emu)
+{
+    emscripten_set_main_loop_arg(main_loop, emu, 0, 1);
+}
+
+#define gb_cancel_main_loop_async() emscripten_cancel_main_loop()
+
+#else
+static inline void run_gb_main_loop(void (*main_loop) (void *), struct gb_emu *emu)
+{
+    main_loop(emu);
+}
+#endif
 
 #endif

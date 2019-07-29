@@ -28,7 +28,7 @@ SRC_OBJS :=
 # Set configuration options
 Q := @
 quiet := quiet
-ifeq ($(V),y)
+ifdef V
 	quiet :=
 endif
 
@@ -42,6 +42,9 @@ slient_echo_cmd = true
 
 mecho = $(call $(quiet)_echo_cmd,$(1),$(2))
 
+ifeq ($(CONFIG_EMSCRIPTEN),y)
+EXTENSION := .js
+endif
 
 # This includes everything in the 'include' folder of the $(objtree)
 # This is so that the code can reference generated include files
@@ -112,17 +115,17 @@ endef
 define proj_ccld_rule
 $(1): $(2) | $$(objtree)/bin
 	@$$(call mecho," CCLD    $$@","$$(CC) $(3) $(2) -o $$@ $(4)")
-	$$(Q)$$(CXX) $$(LDFLAGS) $(3) $(2) -o $$@ $(4)
+	$$(CXX) $$(LDFLAGS) $(EXTRA_LIBS) $(3) $(2) -o $$@ $$(GBEMUC_LIBFLAGS)
 endef
 
 define proj_inc
 include $(1)/config.mk
-PROG := $$(objtree)/bin/$$(EXE)
+PROG := $$(objtree)/bin/$$(EXE)$$(EXTENSION)
 PROJ := $$(EXEC)
 
 objs := $$(sort $$($$(EXEC)_OBJS) $$(SRC_OBJS))
 
-$$(eval $$(call proj_ccld_rule,$$(PROG),$$(objs),$$($$(EXEC)_CFLAGS),$$($$(EXEC)_LIBFLAGS)))
+$$(eval $$(call proj_ccld_rule,$$(PROG),$$(objs),$$($$(EXEC)_CFLAGS)))
 $$(eval $$(call subdir_inc,$$(EXE)))
 CLEAN_LIST += $$(PROG)
 endef
@@ -142,7 +145,7 @@ endif
 $(eval $(call proj_inc,gbemuc))
 CLEAN_LIST += $(objtree)/bin
 
-EXES := $(objtree)/bin/gbemuc
+EXES := $(objtree)/bin/gbemuc$(EXTENSION)
 
 # Include tests
 ifneq (,$(filter $(MAKECMDGOALS),check clean))
@@ -194,6 +197,10 @@ $(objtree)/.%.d: $(srctree)/%.c
 $(objtree)/.%.d: $(srctree)/%.cpp
 	@$(call mecho," CXXCDEP $@","$(CXX) -MM -MP -MF $@ $(CPPFLAGS) $(CXXFLAGS) $< -MT $(objtree)/$*.o -MT $@")
 	$(Q)$(CXX) -MM -MP -MF $@ $(CPPFLAGS) $(CXXFLAGS) $< -MT $(objtree)/$*.o -MT $@
+
+deploy:
+	sudo cp ./bin/* /srv/http/gbemuc/
+	sudo chown -R http:http /srv/http/gbemuc/*
 
 DEP_LIST := $(foreach dep,$(DEPS),$(dir $(dep)).$(notdir $(dep)))
 DEP_LIST := $(DEP_LIST:.o=.d)

@@ -2,8 +2,9 @@
 CC      ?= cc
 CXX     ?= c++
 
-CFLAGS  += -Wall -g -std=c99 -O2 \
+CFLAGS  += -Wall -std=gnu99 -O2 \
 		   -Wno-unused-result
+
 CXXFLAGS ?= -g -O2
 
 CPPFLAGS ?= -D_GNU_SOURCE
@@ -27,9 +28,11 @@ DOCDIR  := $(PREFIX)/share/doc/$(EXE)
 # Show all commands executed by the Makefile
 V ?= n
 
+CONFIG_EMSCRIPTEN ?= n
+
 CONFIG_DEBUG ?= y
 
 # if 'y', then the jit cpu core will be included
 # Requires libjit
-CONFIG_JIT ?= y
+CONFIG_JIT ?= n
 

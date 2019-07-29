@@ -78,7 +78,7 @@ static uint8_t gb_loader_read8(struct gb_emu *emu, uint16_t addr, uint16_t low)
         return gb_bios[addr];
 
     if (addr == 0x7FFF) {
-        char *buffer = &emu->mmu.gb_loader.cur_game;
+        char *buffer = (char *)&emu->mmu.gb_loader.cur_game;
         return buffer[emu->mmu.gb_loader.cur_game_pos++];
     }
 

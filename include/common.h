@@ -55,4 +55,8 @@ void dump_mem(const void *buf, size_t len, uint32_t base_addr);
 # define GBEMUC_VERSION "0.0.0"
 #endif
 
+#ifdef __EMSCRIPTEN__
+# define INTERPRETER_ASYNC
+#endif
+
 #endif

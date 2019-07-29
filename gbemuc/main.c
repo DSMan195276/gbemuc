@@ -105,6 +105,7 @@ int main(int argc, char **argv)
             break;
 
         case ARG_sav:
+            printf("Using save file: %s\n", argarg);
             emu.rom.sav_filename = argarg;
             break;
 
@@ -130,7 +131,7 @@ int main(int argc, char **argv)
 
     window = SDL_CreateWindow("GBEMUC", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, GB_SCREEN_WIDTH * 4, GB_SCREEN_HEIGHT * 4, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
 
-    //SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
+    SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
 
     struct gb_sdl_driver *driver = gb_sdl_driver_new(window);
     disp = gb_sdl_driver_get_gb_gpu_display(driver);

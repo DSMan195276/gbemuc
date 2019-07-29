@@ -169,6 +169,8 @@ struct gb_gpu {
     uint8_t back_palette;
     uint8_t obj_pal[2];
 
+    int frame_is_done;
+
     int cgb_vram_bank_no;
     union {
         uint8_t mem[8 * 0x0400];
