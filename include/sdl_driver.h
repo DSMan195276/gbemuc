@@ -8,8 +8,8 @@
 
 struct gb_sdl_driver;
 
-struct gb_sdl_driver *gb_sdl_driver_new(SDL_Window *);
-void gb_sdl_driver_destory(struct gb_sdl_driver *);
+struct gb_sdl_driver *gb_sdl_driver_new(void);
+void gb_sdl_driver_destroy(struct gb_sdl_driver *);
 
 /*
  * These structures are associated with the gb_sdl_driver and will be destroyed

@@ -96,10 +96,8 @@ void gb_sound_sdl_init(struct gb_sound_sdl *driver)
     // This is in bytes, making this half a second
     driver->max_drift = driver->spec.freq;
 
-    driver->dev = 1;
-
-    ret = SDL_OpenAudio(&driver->spec, NULL);
-    printf("SDL_OpenAudio: %d\n", ret);
+    driver->dev = SDL_OpenAudio(&driver->spec, NULL);
+    printf("SDL_OpenAudio: %d\n", driver->dev);
     SDL_PauseAudio(false);
 }
 

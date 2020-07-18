@@ -9,5 +9,7 @@ objs-y += arg_parser.o
 objs-$(CONFIG_DEBUG) += debug.o
 
 subdir-y += gb
+ifneq ($(filter $(CONFIG_BACKEND),SDL EMSCRIPTEN),)
 subdir-y += sdl
+endif
 

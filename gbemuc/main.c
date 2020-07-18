@@ -3,11 +3,10 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <SDL2/SDL.h>
 
-#include "debug.h"
 #include "arg_parser.h"
-#include "sdl_driver.h"
+#include "backend_driver.h"
+#include "debug.h"
 #include "gb/rom.h"
 #include "gb/debugger.h"
 #include "gb.h"
@@ -48,12 +47,12 @@ int main(int argc, char **argv)
 {
     struct gb_gpu_display *disp;
     struct gb_apu_sound *sound;
-    SDL_Window *window;
     const char *game = NULL;
     int cpu_type = GB_CPU_INTERPRETER;
 
     DEBUG_INIT();
 
+    memset(&emu, 0, sizeof(emu));
     gb_emu_init(&emu);
     emu.config.type = GB_EMU_CGB;
     emu.config.cgb_real_colors = 1;
@@ -127,30 +126,28 @@ int main(int argc, char **argv)
     gb_emu_rom_open(&emu, game);
     gb_rom_dump_header(&emu.rom, stdout);
 
-    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
+    gb_backend_driver *driver = gb_backend_driver_new();
 
-    window = SDL_CreateWindow("GBEMUC", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, GB_SCREEN_WIDTH * 4, GB_SCREEN_HEIGHT * 4, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+    if (!driver) {
+        printf("Unable to initialize gbemuc backend driver!\n");
+        return 1;
+    }
 
-    SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
+    disp = gb_backend_get_gpu_display(driver);
+    sound = gb_backend_get_apu_sound(driver);
 
-    struct gb_sdl_driver *driver = gb_sdl_driver_new(window);
-    disp = gb_sdl_driver_get_gb_gpu_display(driver);
-    sound = gb_sdl_driver_get_gb_apu_sound(driver);
-
-    DEBUG_OFF();
     gb_emu_set_display(&emu, disp);
-    gb_emu_set_sound(&emu, sound);
+
+    if (sound)
+        gb_emu_set_sound(&emu, sound);
 
     gb_emu_reset(&emu);
 
     gb_run(&emu, cpu_type);
-    //gb_debugger_run(&emu);
+    // gb_debugger_run(&emu);
 
     gb_emu_clear(&emu);
-    gb_sdl_driver_destory(driver);
-    SDL_DestroyWindow(window);
-
-    SDL_Quit();
+    gb_backend_driver_destroy(driver);
 
     DEBUG_CLOSE();
 

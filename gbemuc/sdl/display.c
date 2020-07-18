@@ -156,5 +156,6 @@ void gb_display_sdl_clear(struct gb_display_sdl *disp)
 {
     SDL_DestroyTexture(disp->texture);
     SDL_DestroyRenderer(disp->dest_rend);
+    SDL_DestroyWindow(disp->win);
 }
 

@@ -4,10 +4,12 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#ifdef GBEMUC_BACKEND_SDL
 #ifdef __EMSCRIPTEN__
 # include <SDL.h>
 #else
 # include <SDL2/SDL.h>
+#endif
 #endif
 
 #define GB_APU_SAMPLES (4096 * 4)

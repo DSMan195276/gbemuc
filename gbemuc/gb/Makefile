@@ -15,5 +15,11 @@ objs-y += cgb_themes.o
 
 subdir-y += cpu
 subdir-y += mmu
+
+# We provide an APU stub in the event we don't want/support the APU
+ifeq ($(CONFIG_APU),y)
 subdir-y += gb_apu
+else
+objs-y += gb_apu_null.o
+endif
 
