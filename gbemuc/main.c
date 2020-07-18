@@ -26,6 +26,7 @@ static const char *arg_str = "[Flags] [Game]";
     X(help, "help", 0, 'h', "Display help") \
     X(version, "version", 0, 'v', "Display version information") \
     X(sav, "sav", 1, 's', "Specify a sav file to load") \
+    X(info, "info", 0, 'i', "Dump game information and exist") \
     X(last, NULL, 0, '\0', NULL)
 
 enum arg_index {
@@ -49,6 +50,7 @@ int main(int argc, char **argv)
     struct gb_apu_sound *sound;
     const char *game = NULL;
     int cpu_type = GB_CPU_INTERPRETER;
+    int info_only = 0;
 
     DEBUG_INIT();
 
@@ -108,6 +110,10 @@ int main(int argc, char **argv)
             emu.rom.sav_filename = argarg;
             break;
 
+        case ARG_info:
+            info_only = 1;
+            break;
+
         case ARG_EXTRA:
             if (!game)
                 game = argarg;
@@ -122,9 +128,17 @@ int main(int argc, char **argv)
         }
     }
 
+    if (!game) {
+        printf("%s: Please supply a game to run.\n", argv[0]);
+        return 1;
+    }
+
     printf("Loading rom: %s\n", game);
     gb_emu_rom_open(&emu, game);
     gb_rom_dump_header(&emu.rom, stdout);
+
+    if (info_only)
+        return 0;
 
     gb_backend_driver *driver = gb_backend_driver_new();
 
