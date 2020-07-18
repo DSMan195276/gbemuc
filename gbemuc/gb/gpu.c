@@ -473,8 +473,16 @@ void gb_gpu_dma(struct gb_emu *emu, uint8_t dma_addr)
 void gb_gpu_init(struct gb_gpu *gpu)
 {
     memset(gpu, 0, sizeof(*gpu));
-
     memset(gpu->screenbuf, 0x00, sizeof(gpu->screenbuf));
+
+    gpu->keypad.key_a = 1;
+    gpu->keypad.key_b = 1;
+    gpu->keypad.key_up = 1;
+    gpu->keypad.key_down = 1;
+    gpu->keypad.key_left= 1;
+    gpu->keypad.key_right = 1;
+    gpu->keypad.key_start = 1;
+    gpu->keypad.key_select = 1;
 }
 
 uint8_t gb_gpu_vram_read8(struct gb_emu *emu, uint16_t addr, uint16_t low)
