@@ -29,13 +29,15 @@ void gb_emu_rom_open(struct gb_emu *emu, const char *filename)
     if (emu->rom.sav_filename) {
         struct stat s;
 
-        stat(emu->rom.sav_filename, &s);
-        flen = s.st_size;
+        int err = stat(emu->rom.sav_filename, &s);
+        if (!err) {
+            flen = s.st_size;
 
-        if (flen)
-            f = fopen(emu->rom.sav_filename, "r");
+            if (flen)
+                f = fopen(emu->rom.sav_filename, "r");
 
-        printf("Sav file size: %zd\n", flen);
+            printf("Sav file size: %zd\n", flen);
+        }
     }
 
     if (emu->config.type != GB_EMU_CGB || !(emu->rom.cgb_flag & (1 << 7)))
@@ -52,7 +54,7 @@ void gb_emu_rom_open(struct gb_emu *emu, const char *filename)
         emu->mmu.mbc_controller = &gb_mbc1_mmu_entry;
         emu->mmu.eram_controller = &gb_mbc1_eram_mmu_entry;
 
-        if (flen != 0)
+        if (f && flen != 0)
             fread(emu->mmu.eram, 1, flen, f);
 
     } else if (cart_bitmap & GB_CART_FLAG(MBC3)) {
@@ -60,7 +62,7 @@ void gb_emu_rom_open(struct gb_emu *emu, const char *filename)
         emu->mmu.mbc_controller = &gb_mbc3_mmu_entry;
         emu->mmu.eram_controller = &gb_mbc3_eram_mmu_entry;
 
-        if (flen != 0) {
+        if (f && flen != 0) {
             fread(emu->mmu.eram, 1, 4 * 8192, f);
             if (cart_bitmap & GB_CART_FLAG(TIMER) && flen > 4 * 8192) {
                 /* Timer information */
@@ -74,7 +76,7 @@ void gb_emu_rom_open(struct gb_emu *emu, const char *filename)
         emu->mmu.mbc_controller = &gb_mbc5_mmu_entry;
         emu->mmu.eram_controller = &gb_mbc5_eram_mmu_entry;
 
-        if (flen != 0) {
+        if (f && flen != 0) {
             size_t sl = fread(emu->mmu.eram, 1, flen, f);
             printf("Read %zd bytes!\n", sl);
         }
