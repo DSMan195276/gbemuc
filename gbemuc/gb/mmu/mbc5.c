@@ -73,8 +73,10 @@ static uint8_t mbc5_eram_read8(struct gb_emu *emu, uint16_t addr, uint16_t low)
 
 static void mbc5_eram_write8(struct gb_emu *emu, uint16_t addr, uint16_t low, uint8_t val)
 {
-    if (emu->mmu.mbc5.ram_bank_enable == 0x0A)
+    if (emu->mmu.mbc5.ram_bank_enable == 0x0A) {
+        emu->mmu.eram_was_touched = 1;
         emu->mmu.eram[emu->mmu.mbc5.ram_bank][addr] = val;
+    }
 }
 
 static int mbc5_get_bank(struct gb_emu *emu, uint16_t addr)

@@ -99,6 +99,7 @@ struct gb_mmu {
 
     struct gb_mmu_entry *mbc_controller, *eram_controller;
 
+    int eram_was_touched;
     char eram[16][8 * 1024]; /* External RAM */
 
     int cgb_wram_bank_no;

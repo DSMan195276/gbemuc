@@ -342,6 +342,13 @@ void gb_gpu_display_screen(struct gb_emu *emu, struct gb_gpu *gpu)
     gb_gpu_update_key_line(emu);
 
     (gpu->display->disp_buf) (gpu->display, gpu->screenbuf);
+
+    /* This is a convient time to write the save-file if the eram is modified,
+     * since it ensure we only do it occasionally and not on every eram write. */
+    if (emu->mmu.eram_was_touched) {
+        emu->mmu.eram_was_touched = 0;
+        gb_emu_write_save(emu);
+    }
 }
 
 void gb_gpu_ctl_change(struct gb_emu *emu, struct gb_gpu *gpu, uint8_t new_ctl)

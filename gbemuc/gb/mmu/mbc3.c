@@ -158,9 +158,10 @@ static void mbc3_eram_write8(struct gb_emu *emu, uint16_t addr, uint16_t low, ui
     if (!(emu->mmu.mbc3.ram_timer_enable == 0x0A))
         return ;
 
-    if (emu->mmu.mbc3.ram_bank < 0x04)
+    if (emu->mmu.mbc3.ram_bank < 0x04) {
+        emu->mmu.eram_was_touched = 1;
         emu->mmu.eram[emu->mmu.mbc3.ram_bank][addr] = val;
-    else {
+    } else {
         time_t now = time(NULL);
 
         emu->mmu.mbc3.last_time_update = now;
