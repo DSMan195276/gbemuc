@@ -81,7 +81,7 @@ static void gb_protura_display(struct gb_gpu_display *disp, union gb_gpu_color_u
      * We introduce the protura->offset_x here just as an optimization, since
      * every line starts at that point anyway. */
     uint32_t *fb_y_start = fb + disp_width * protura->offset_y + protura->offset_x;
-    union gb_gpu_color_u *cur_pos = buff;
+    union gb_gpu_color_u *buf_offset = buff;
 
     /* NOTE: We need to write in a linear fashion to the framebuffer memory to
      * achieve the required speed to run at 60fps. This works along with the
@@ -90,12 +90,14 @@ static void gb_protura_display(struct gb_gpu_display *disp, union gb_gpu_color_u
      *
      * Since we write 4 bytes at a time, and a cache line is probably 32 bytes,
      * that a potential 8x speed up for linear writes vs. non-linear writes. */
-    for (y = 0; y < GB_SCREEN_HEIGHT; y++) {
+    for (y = 0; y < GB_SCREEN_HEIGHT; y++, buf_offset += GB_SCREEN_WIDTH) {
         for (y1 = 0; y1 < protura->scale; y1++, fb_y_start += disp_width) {
 
             uint32_t *fb_x_start = fb_y_start;
-            for (x = 0; x < GB_SCREEN_WIDTH; x++, cur_pos++) {
-                uint32_t color = cur_pos->i_color;
+            union gb_gpu_color_u *cur_line = buf_offset;
+
+            for (x = 0; x < GB_SCREEN_WIDTH; x++, cur_line++) {
+                uint32_t color = cur_line->i_color;
 
                 for (x1 = 0; x1 < protura->scale; x1++, fb_x_start++)
                     *fb_x_start = color;
@@ -166,7 +168,7 @@ static void gb_protura_get_keystate(struct gb_emu *emu, struct gb_keypad *keys)
                 continue;
 
             switch (event_buffer[i].code) {
-            case KS_B:
+            case KS_A:
                 keys->key_a = event_buffer[i].value == KERN_EVENT_KEY_RELEASE;
                 break;
 
