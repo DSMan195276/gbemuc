@@ -12,6 +12,18 @@ typedef struct gb_sdl_driver gb_backend_driver;
 #define gb_backend_get_gpu_display(driver) gb_sdl_driver_get_gb_gpu_display((driver))
 #define gb_backend_get_apu_sound(driver)   gb_sdl_driver_get_gb_apu_sound((driver))
 
+#elif defined(GBEMUC_BACKEND_PROTURA)
+
+#include "protura_driver.h"
+
+typedef struct gb_protura_driver gb_backend_driver;
+
+#define gb_backend_driver_new() gb_protura_driver_new()
+#define gb_backend_driver_destroy(driver) gb_protura_driver_destroy((driver))
+
+#define gb_backend_get_gpu_display(driver) gb_protura_driver_get_gb_gpu_display((driver))
+#define gb_backend_get_apu_sound(driver) (NULL)
+
 #else
 #error "No gbemuc backend setting!"
 #endif

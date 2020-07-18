@@ -40,5 +40,6 @@ CONFIG_JIT ?= n
 #
 # The emscripten makes use of the sdl backend along with some extra settings
 CONFIG_BACKEND ?= SDL
+# CONFIG_BACKEND := PROTURA
 # CONFIG_BACKEND := EMSCRIPTEN
 

@@ -13,3 +13,7 @@ ifneq ($(filter $(CONFIG_BACKEND),SDL EMSCRIPTEN),)
 subdir-y += sdl
 endif
 
+ifeq ($(CONFIG_BACKEND),PROTURA)
+subdir-y += protura
+endif
+
