@@ -42,10 +42,12 @@
 
 void dump_mem(const void *buf, size_t len, uint32_t base_addr);
 
+#ifndef __unused
 #ifdef __GNUC__
 # define __unused __attribute__((unused))
 #else
 # define __unused
+#endif
 #endif
 
 /* This const is supplied by the Makefile
