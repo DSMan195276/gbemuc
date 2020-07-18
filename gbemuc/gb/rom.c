@@ -144,7 +144,7 @@ void gb_rom_open(struct gb_rom *rom, const char *filename)
         printf("Sav: %s\n", sav_file);
 
         // FIXME: This is obviously going to leak
-        char *filen = malloc(strlen(sav_file));
+        char *filen = malloc(strlen(sav_file) + 1);
 
         strcpy(filen, sav_file);
         rom->sav_filename = filen;
