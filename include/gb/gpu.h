@@ -99,7 +99,7 @@ struct gb_keypad {
 
 struct gb_gpu_display {
     void (*disp_buf) (struct gb_gpu_display *, union gb_gpu_color_u *buf);
-    void (*get_keystate) (struct gb_gpu_display *, struct gb_keypad *keys);
+    void (*get_keystate) (struct gb_emu *, struct gb_keypad *keys);
 
     struct gb_dmg_theme dmg_theme;
 };

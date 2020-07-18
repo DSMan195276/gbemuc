@@ -338,7 +338,7 @@ void gb_gpu_update_key_line(struct gb_emu *emu)
 
 void gb_gpu_display_screen(struct gb_emu *emu, struct gb_gpu *gpu)
 {
-    (gpu->display->get_keystate) (gpu->display, &gpu->keypad);
+    (gpu->display->get_keystate) (emu, &gpu->keypad);
     gb_gpu_update_key_line(emu);
 
     (gpu->display->disp_buf) (gpu->display, gpu->screenbuf);

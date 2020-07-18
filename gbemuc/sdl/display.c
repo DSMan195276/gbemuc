@@ -5,6 +5,7 @@
 #include <time.h>
 #include <SDL.h>
 
+#include "gb.h"
 #include "gb/gpu.h"
 #include "sdl_driver.h"
 #include "sdl_internal.h"
@@ -79,9 +80,9 @@ static void gb_sdl_display(struct gb_gpu_display *disp, union gb_gpu_color_u *bu
     }
 }
 
-static void gb_sdl_get_keystate(struct gb_gpu_display *disp, struct gb_keypad *keys)
+static void gb_sdl_get_keystate(struct gb_emu *emu, struct gb_keypad *keys)
 {
-    struct gb_display_sdl *sdl = container_of(disp, struct gb_display_sdl, gb_disp);
+    struct gb_display_sdl *sdl = container_of(emu->gpu.display, struct gb_display_sdl, gb_disp);
     struct gb_sdl_driver *driver = container_of(sdl, struct gb_sdl_driver, display);
     const uint8_t *keystate;
 
@@ -100,7 +101,7 @@ static void gb_sdl_get_keystate(struct gb_gpu_display *disp, struct gb_keypad *k
 
     if (keystate[SDL_SCANCODE_P] && !sdl->p_pressed) {
         sdl->cur_palette = (sdl->cur_palette + 1) % GB_PALETTES;
-        disp->dmg_theme = gb_palettes[sdl->cur_palette];
+        emu->gpu.display->dmg_theme = gb_palettes[sdl->cur_palette];
 
         sdl->p_pressed = 1;
     } else if (!keystate[SDL_SCANCODE_P]) {
