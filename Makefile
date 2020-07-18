@@ -114,7 +114,7 @@ endef
 
 define proj_ccld_rule
 $(1): $(2) | $$(objtree)/bin
-	@$$(call mecho," CCLD    $$@","$$(CC) $(3) $(2) -o $$@ $(4)")
+	@$$(call mecho," CCLD    $$@","$$(CXX) $(3) $(2) -o $$@ $(4)")
 	$$(CXX) $$(LDFLAGS) $(EXTRA_LIBS) $(3) $(2) -o $$@ $$(GBEMUC_LIBFLAGS)
 endef
 
@@ -158,13 +158,13 @@ real-all: $(EXES)
 
 install:
 	$(Q)mkdir -p $(BINDIR)
-	@echo " INSTALL cboy"
-	$(Q)install -m 775 ./bin/nclyr $(BINDIR)
-	@echo " cboy Installation done"
+	@echo " INSTALL gbemuc"
+	$(Q)install -m 775 ./bin/gbemuc $(BINDIR)
+	@echo " gbemuc Installation done"
 
 dist: clean
 	$(Q)mkdir -p $(EXE)-$(VERSION_N)
-	$(Q)cp -R Makefile README.md config.mk LICENSE ./doc ./include ./src ./cboy $(EXE)-$(VERSION_N)
+	$(Q)cp -R Makefile README.md config.mk LICENSE ./doc ./include ./src ./gbemuc $(EXE)-$(VERSION_N)
 	$(Q)tar -cf $(EXE)-$(VERSION_N).tar $(EXE)-$(VERSION_N)
 	$(Q)gzip $(EXE)-$(VERSION_N).tar
 	$(Q)rm -fr $(EXE)-$(VERSION_N)
