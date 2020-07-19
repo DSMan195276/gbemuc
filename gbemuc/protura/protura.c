@@ -168,11 +168,11 @@ static void gb_protura_get_keystate(struct gb_emu *emu, struct gb_keypad *keys)
                 continue;
 
             switch (event_buffer[i].code) {
-            case KS_A:
+            case KS_Z:
                 keys->key_a = event_buffer[i].value == KERN_EVENT_KEY_RELEASE;
                 break;
 
-            case KS_Z:
+            case KS_X:
                 keys->key_b = event_buffer[i].value == KERN_EVENT_KEY_RELEASE;
                 break;
 
