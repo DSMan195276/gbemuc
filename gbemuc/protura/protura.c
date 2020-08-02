@@ -37,6 +37,8 @@ struct gb_display_protura {
     int fd0_fd;
 
     int cur_palette;
+
+    useconds_t diff;
 };
 
 struct gb_protura_driver {
@@ -116,19 +118,18 @@ static void gb_protura_display(struct gb_gpu_display *disp, union gb_gpu_color_u
 
         uint64_t cur_tick_us = timeval_to_us(&timeval);
         uint64_t elapsed = cur_tick_us - protura->last_tick_us;
+        protura->diff += gb_us_per_frame - elapsed;
+        protura->last_tick_us = cur_tick_us;
 
-        if (elapsed < gb_us_per_frame) {
-            /* useconds_t is signed, eww. But we shouldn't ever get negative
-             * since elapsed < gb_us_per_frame */
-            useconds_t diff = gb_us_per_frame - elapsed;
-
-            usleep(diff);
+        if (protura->diff > 0) {
+            usleep(protura->diff);
 
             gettimeofday(&timeval, NULL);
             cur_tick_us = timeval_to_us(&timeval);
-        }
 
-        protura->last_tick_us = timeval_to_us(&timeval);
+            protura->diff -= cur_tick_us - protura->last_tick_us;
+            protura->last_tick_us = cur_tick_us;
+        }
 
         protura->fps_count++;
 
